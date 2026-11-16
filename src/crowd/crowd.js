@@ -494,6 +494,20 @@ export class Crowd {
     for (const g of this.list) if (!g.special && g.state === 'placed') { g.anim.play(name, { blend: 0.6 }); g.busy = 0; g.timer = dur; }
   }
 
+  /** escolhe quem ganha close no rodízio da câmera: quem interagiu por último e ainda não apareceu */
+  pickForCamera() {
+    const now = performance.now();
+    const cands = this.list.filter((g) => g.state === 'placed' && !g.special);
+    if (!cands.length) return null;
+    const fresh = cands.filter((g) => !g._shownAt || now - g._shownAt > 60000);
+    const pool = fresh.length ? fresh : cands;
+    pool.sort((a, b) => (a.bot ? 1 : 0) - (b.bot ? 1 : 0) || b.lastActive - a.lastActive || (a._shownAt || 0) - (b._shownAt || 0));
+    const g = fresh.length ? pool[0] : pool.sort((a, b) => (a._shownAt || 0) - (b._shownAt || 0))[0];
+    g._shownAt = now;
+    if (g.busy <= 0) { g.anim.play('hello', { dur: 1.6, next: () => this.mode || pick(DANCES) }); g.busy = 1.6; }
+    return g;
+  }
+
   _faceCenter(g) { return Math.atan2(this.center.x - g.pos.x, this.center.z - g.pos.z); }
 
   // ---------------- atualização por quadro ----------------

@@ -35,7 +35,10 @@ export class CameraDirector {
   focusCouple(dur = 6) { this.focus = { couple: true, t: dur }; }
 
   update(dt, time) {
-    const SHOTS = this.crowdCount > 30 ? ['wide', 'medium', 'couple', 'wide', 'sweep', 'high'] : ['wide', 'couple', 'medium', 'sweep'];
+    // rodízio: alterna enquadramentos gerais / noivos com close em participantes ('guest')
+    const SHOTS = this.crowdCount > 30
+      ? ['wide', 'guest', 'couple', 'guest', 'medium', 'guest', 'sweep', 'guest', 'high', 'guest']
+      : ['wide', 'guest', 'couple', 'guest', 'medium', 'guest', 'sweep', 'guest'];
     if (this.focus) {
       this.focus.t -= dt;
       if (this.focus.t <= 0 || (this.focus.guest && !this.focus.guest.alive)) this.focus = null;
@@ -44,7 +47,13 @@ export class CameraDirector {
       this.shotT += dt;
       if (this.shotT > this.shotDur && !this.locked) {
         this.shotT = 0; this.shotIdx = (this.shotIdx + 1) % SHOTS.length;
-        this.shot = SHOTS[this.shotIdx]; this.shotDur = 10 + Math.random() * 8;
+        this.shot = SHOTS[this.shotIdx]; this.shotDur = 8 + Math.random() * 4;
+        if (this.shot === 'guest') {
+          const g = this.pickGuest ? this.pickGuest() : null;
+          if (g) { this.focusOn(g, 4.5, 'tour'); this.shotT = this.shotDur; } // ao terminar o close, segue o rodízio
+          else this.shotT = this.shotDur;
+          this.shot = SHOTS[(this.shotIdx + SHOTS.length - 1) % SHOTS.length];
+        }
       }
     }
     const shot = this.locked || this.shot;

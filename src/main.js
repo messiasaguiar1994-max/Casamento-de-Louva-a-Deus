@@ -107,6 +107,7 @@ const crowd = new Crowd(scene, {
   onCount: (n) => { hud.setCount(n); camDir.crowdCount = n; },
 });
 crowd.setLimit(cfg.limit);
+camDir.pickGuest = () => crowd.pickForCamera();
 const wedding = new WeddingDirector(groom, bride, { crowd, fx, audio, camDir });
 resize();
 window.addEventListener('resize', resize);
