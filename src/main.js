@@ -17,7 +17,8 @@ import { AudioEngine } from './audio/audio.js';
 import { CameraDirector, WeddingDirector } from './scene/director.js';
 import { HUD } from './ui/hud.js';
 import { buildPanel } from './ui/panel.js';
-import { TikTokLink, cleanServer } from './net/tiktok.js';
+import { TikTokLink, cleanServer, IS_APP } from './net/tiktok.js';
+import { buildMenu } from './ui/menu.js';
 import { loadConfig, saveConfig, resolveGift } from './config.js';
 
 const params = new URLSearchParams(location.search);
@@ -141,6 +142,10 @@ const likeGate = new Map();
 function handleEvent(e) {
   const u = e.user;
   if (!u || !u.id) return;
+  if (game.onLog && e.type !== 'like') {
+    const n = u.name || u.id;
+    game.onLog(e.type === 'join' ? `${n} entrou` : e.type === 'chat' ? `${n}: ${e.comment || ''}` : e.type === 'gift' ? `${n} enviou ${e.giftName}${e.count > 1 ? ' x' + e.count : ''}` : e.type === 'follow' ? `${n} seguiu` : `${n} compartilhou`);
+  }
   const known = crowd.guests.has(u.id);
   const join = () => {
     const g = crowd.add({ id: u.id, name: u.name || u.id, pic: u.pic });
@@ -220,6 +225,7 @@ const game = {
 const link = new TikTokLink(handleEvent, (state, msg) => {
   hud.setConn(state === 'live' ? '● ao vivo' : '');
   game.onStatus(state, msg);
+  if (game.onMenuStatus) game.onMenuStatus(state, msg);
 });
 game.remote = link.remote;
 const panelEl = document.getElementById('panel');
@@ -229,7 +235,9 @@ const gear = document.createElement('button');
 gear.id = 'gear'; gear.textContent = '⚙'; gear.title = 'Painel (P)';
 gear.onclick = () => panelEl.classList.toggle('hidden');
 document.body.appendChild(gear);
-if (!SHOT) game.connect(cfg.username);
+const APP = IS_APP || params.has('menu');
+if (APP) gear.style.display = 'none'; // no app o painel abre pelo ⚙ Menu
+if (!SHOT && !APP) game.connect(cfg.username);
 
 // início: um clique libera o som (regra dos navegadores)
 let started = false;
@@ -241,7 +249,8 @@ function start() {
   audio.play(0);
   if (startEl) startEl.remove();
 }
-if (!SHOT) {
+if (!SHOT && APP) buildMenu(game, { onPlay: start });
+if (!SHOT && !APP) {
   startEl = document.createElement('div');
   startEl.style.cssText = 'position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:30%;z-index:5;cursor:pointer;pointer-events:auto';
   startEl.innerHTML = '<div style="background:rgba(30,10,35,.8);color:#fff;font-weight:800;font-size:1.4em;padding:.7em 1.4em;border-radius:2em;border:3px solid #ffb3cf">🎉 Toque para começar a festa</div>';
@@ -258,7 +267,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'g') crowd.groupDance();
   else if (k === 'f') { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen?.(); }
 });
-window.addEventListener('pointerdown', (e) => { if (!panelEl.contains(e.target) && e.target !== gear) start(); });
+window.addEventListener('pointerdown', (e) => { if (!(e.target instanceof Node) || (!panelEl.contains(e.target) && e.target !== gear)) start(); });
 
 // ---------------- vida própria da festa ----------------
 let groupT = 90, chirpT = 4, randomT = 6;

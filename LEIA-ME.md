@@ -20,13 +20,12 @@ Funciona igual à Pescaria: o **aplicativo** roda o jogo no celular e um **servi
 3. Ele cria o serviço **tiktok-casamento**. Quando ficar verde ("Live"), copie o endereço dele (algo como `https://tiktok-casamento.onrender.com`).
 4. (Opcional) Se você tem a chave do eulerstream.com usada na Pescaria, coloque em **Environment → EULER_API_KEY**.
 
-**Na hora da live**
-1. Abra o app e toque na tela para começar a festa.
-2. Toque no **⚙** (canto de baixo, à direita) para abrir o painel.
-3. Confira o **Servidor** (o endereço do Render), digite seu **@** e toque em **Conectar**.
-   O servidor grátis "dorme" quando ninguém usa: na primeira vez pode levar até 1 minuto para acordar.
-4. Quando aparecer **"Ao vivo! Conectado..."**, toque em **✕ Fechar**.
-5. Comece a live no TikTok pelo **modo jogo** (transmitir a tela) e volte para o app.
+**Usando o app** (igual aos outros apps da live)
+- Ao abrir aparece a tela inicial: **Usuário do TikTok**, **Conectar** e **▶ ENTRAR NA FESTA**.
+- Para jogar sem live, toque direto em **ENTRAR NA FESTA**.
+- Para a live: digite seu @, toque em **Conectar** (o servidor grátis pode levar até 1 minuto para acordar), espere a bolinha ficar verde e toque em **ENTRAR NA FESTA**. Depois comece a live no **modo jogo** do TikTok.
+- Durante a festa, **toque na tela**: aparece **⚙ Menu** no canto de cima para voltar à tela inicial.
+- Na tela inicial também tem: Configurações (servidor, qualidade, máximo de convidados, nomes dos noivos, painel completo), Música de fundo, Testar sem live e O que está chegando da live.
 
 O app deixa a tela sempre acesa e em tela cheia. Se ficar travando, ele baixa a qualidade sozinho (ou mude em **Painel → Qualidade**).
 
