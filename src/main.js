@@ -85,6 +85,7 @@ fx = new FX(scene);
 const audio = new AudioEngine();
 audio.setMusicVolume(cfg.musicVolume);
 audio.setSfxVolume(cfg.sfxVolume);
+audio.fileBpm = cfg.danceBpm || 150;
 
 const groom = new Groom();
 const bride = new Bride();
@@ -212,7 +213,7 @@ function syncBots() {
 }
 function reset() {
   crowd.clear();
-  wedding.trigger('romantic');
+  wedding.trigger('dance');
   syncBots();
 }
 
@@ -280,7 +281,7 @@ function partyLife(dt) {
   if (randomT <= 0 && crowd.count) {
     randomT = 6 + Math.random() * 8;
     const g = crowd.list[(Math.random() * crowd.count) | 0];
-    if (g && g.busy <= 0 && g.state === 'placed' && !g.special) { g.anim.play(Math.random() < 0.5 ? 'celebrate' : 'special', { dur: 2.5, next: 'sway' }); g.busy = 2.5; }
+    if (g && g.busy <= 0 && g.state === 'placed' && !g.special) { g.anim.play(Math.random() < 0.5 ? 'celebrate' : 'special', { dur: 2.5, next: 'piseiro' }); g.busy = 2.5; }
   }
 }
 

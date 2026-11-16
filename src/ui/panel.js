@@ -7,6 +7,7 @@ import { ANIMS } from '../mantis/anims.js';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const ANIM_NAMES = {
+  piseiro: 'Passinho de piseiro', passinho: 'Passinho cruzado', arrasta: 'Arrasta-pé', tremidinha: 'Tremidinha', sapateado: 'Sapateado', pulapula: 'Pula-pula',
   idle: 'Parado', walk: 'Caminhada', sway: 'Dança balanço', armsUp: 'Bracinhos pra cima', disco: 'Disco', wiggle: 'Requebrado',
   bounce: 'Pulinhos', robot: 'Robô', wave: 'Onda', special: 'Dança especial', celebrate: 'Comemoração', surprise: 'Surpresa',
   romantic: 'Romântica', kiss: 'Beijo', hello: 'Acenar', clap: 'Palmas', dizzy: 'Tonto', fly: 'Voando', bow: 'Reverência', highfive: 'Toca aqui',
@@ -52,7 +53,7 @@ export function buildPanel(el, game) {
 
   <h3>Noivos</h3>
   <div class="row"><input type="text" id="n-groom" value="${esc(cfg.groomName)}" placeholder="nome do noivo"><input type="text" id="n-bride" value="${esc(cfg.brideName)}" placeholder="nome da noiva"></div>
-  <div class="row"><button data-c="romantic">💞 Romântica</button><button data-c="dance">💃 Dançar</button><button data-c="kiss">💋 Beijo</button><button data-c="celebrate">🎉 Comemorar</button><button data-c="surprise">😮 Surpresa</button></div>
+  <div class="row"><button data-c="dance">💃 Dançar</button><button data-c="kiss">💋 Beijo</button><button data-c="celebrate">🎉 Comemorar</button><button data-c="surprise">😮 Surpresa</button></div>
 
   <h3>Todos os convidados</h3>
   <div class="row"><button id="t-group">Dança em grupo</button><button id="t-cele">Comemorar</button><button id="t-surp">Surpresa</button><button id="t-clap">Palmas</button><button id="t-conf">Confete</button></div>
@@ -161,7 +162,7 @@ export function buildPanel(el, game) {
   $('t-conf').onclick = () => game.crowd.act(game.crowd.list[0] || { alive: false }, 'confetti');
   $('t-anim-go').onclick = () => {
     const a = $('t-anim').value;
-    for (const g of game.crowd.list) if (!g.special) { g.anim.play(a, { dur: 6, next: 'sway' }); g.busy = 6; }
+    for (const g of game.crowd.list) if (!g.special) { g.anim.play(a, { dur: 6, next: 'piseiro' }); g.busy = 6; }
   };
 
   // --- música ---

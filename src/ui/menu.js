@@ -62,6 +62,8 @@ export function buildMenu(game, { onPlay }) {
       <div class="lin"><button id="m-mus">➕ Escolher músicas</button><button id="m-musx">Músicas do jogo</button></div>
       <input id="m-musf" type="file" accept="audio/*" multiple style="display:none">
       <div class="dica" id="m-musl">tocando as músicas do jogo</div>
+      <label for="m-bpm">Ritmo da dança (para as suas músicas)</label>
+      <select id="m-bpm"><option value="130">Piseiro mais calmo</option><option value="150">Piseiro normal</option><option value="165">Piseiro acelerado</option><option value="180">Muito rápido</option></select>
       <label for="m-musv">Volume da música</label>
       <input id="m-musv" type="range" min="0" max="1" step="0.05" value="${cfg.musicVolume}" style="width:100%">
     </details>
@@ -79,6 +81,7 @@ export function buildMenu(game, { onPlay }) {
   const $ = (id) => document.getElementById(id);
   const save = () => saveConfig(cfg);
   $('m-q').value = cfg.quality;
+  $('m-bpm').value = String(cfg.danceBpm || 150);
   $('m-lim').value = String([30, 50, 70, 100, 150, 200].reduce((a, b) => (Math.abs(b - cfg.limit) < Math.abs(a - cfg.limit) ? b : a)));
 
   // botão flutuante para voltar ao menu
@@ -153,6 +156,7 @@ export function buildMenu(game, { onPlay }) {
     $('m-musl').textContent = files.map((f) => '♪ ' + f.name.replace(/\.[^.]+$/, '')).join('\n');
   };
   $('m-musx').onclick = () => { game.audio.unlock(); game.audio.useSynth(); $('m-musl').textContent = 'tocando as músicas do jogo'; };
+  $('m-bpm').onchange = (e) => { cfg.danceBpm = Number(e.target.value); save(); game.audio.fileBpm = cfg.danceBpm; if (game.audio.mode === 'files') game.audio.bpm = cfg.danceBpm; };
   $('m-musv').oninput = (e) => { cfg.musicVolume = Number(e.target.value); save(); game.audio.setMusicVolume(cfg.musicVolume); };
 
   // testes (fecham o menu para você ver o que acontece)

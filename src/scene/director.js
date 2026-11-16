@@ -101,15 +101,15 @@ export class WeddingDirector {
     this.groom = groom; this.bride = bride;
     this.crowd = crowd; this.fx = fx; this.audio = audio; this.camDir = camDir;
     this.center = new THREE.Vector3(0, 0, 0.3);
-    this.mode = 'romantic';
+    this.mode = 'dance';
     this.modeT = 0;
     this.modeDur = 18;
     this.pairAng = 0;
     this.sep = 0.78;
     this.yawIn = 0.85;
-    this.seq = ['romantic', 'dance', 'romantic', 'kiss', 'dance', 'celebrate'];
+    this.seq = ['dance', 'dance', 'kiss', 'dance', 'dance', 'celebrate'];
     this.seqIdx = 0;
-    this.set('romantic');
+    this.set('dance');
   }
 
   set(mode, dur) {
@@ -121,8 +121,8 @@ export class WeddingDirector {
         g.anim.play('romantic', { blend: 0.8 }); b.anim.play('romantic', { blend: 0.8 });
         break;
       case 'dance': {
-        this.modeDur = dur || 16;
-        const d = pick(DANCES.filter((x) => x !== 'robot'));
+        this.modeDur = dur || 12;
+        const d = pick(DANCES);
         g.anim.play(d, { blend: 0.6 }); b.anim.play(d, { blend: 0.6 });
         break;
       }

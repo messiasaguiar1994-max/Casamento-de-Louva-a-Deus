@@ -600,9 +600,9 @@ export class Crowd {
     g.yaw += angDiff(g.yaw, g.yawTarget) * Math.min(1, dt * 3);
     g.timer -= dt;
     if (g.timer <= 0 && g.busy <= 0) {
-      g.timer = this.mode ? this.modeT + 0.1 : rnd(6, 14);
+      g.timer = this.mode ? this.modeT + 0.1 : rnd(5, 10);
       const r = Math.random();
-      const next = this.mode || (r < 0.08 ? 'clap' : r < 0.14 ? 'idle' : pick(DANCES));
+      const next = this.mode || (r < 0.06 ? 'clap' : pick(DANCES));
       g.anim.play(next, { blend: 0.5, dur: next === 'clap' ? 3 : Infinity, next: () => pick(DANCES) });
     }
   }
@@ -650,7 +650,7 @@ export class Crowd {
     let best = null, bd = 2.6;
     for (const b of free) { if (b === a) continue; const d = a.pos.distanceTo(b.pos); if (d < bd) { bd = d; best = b; } }
     if (!best) return;
-    const kind = pick(['highfive', 'clap', 'bounce', 'wiggle', 'hello']);
+    const kind = pick(['highfive', 'piseiro', 'passinho', 'pulapula', 'clap']);
     for (const [x, y] of [[a, best], [best, a]]) {
       x.yawTarget = Math.atan2(y.pos.x - x.pos.x, y.pos.z - x.pos.z);
       x.faceT = 3.2; x.busy = 3.2;

@@ -22,7 +22,7 @@ export function defaultPose() {
     lRaise: 0, lOut: 0, lEl: 0, lFold: 0,
     rRaise: 0, rOut: 0, rEl: 0, rFold: 0,
     eye: 1, pupX: 0, pupY: 0, mouth: 0,
-    squash: 1, step: 0, stepPh: 0, footSpread: 1,
+    squash: 1, step: 0, stepPh: 0, footSpread: 1, shiftX: 0, shiftZ: 0, kick: 0,
   };
 }
 export const POSE_KEYS = Object.keys(defaultPose());
@@ -149,7 +149,7 @@ export class MantisRig {
     const s = P.squash;
     this.inner.position.y = P.hop;
     this.inner.rotation.y = P.spin;
-    this.body.position.y = BODY_Y + P.bob;
+    this.body.position.set(P.shiftX, BODY_Y + P.bob, P.shiftZ);
     this.body.rotation.set(0, P.hipYaw, P.hipRoll);
     this.body.scale.set(1 / Math.sqrt(s), s, 1 / Math.sqrt(s));
 
@@ -205,7 +205,7 @@ export class MantisRig {
       const L = this.legs[i];
       // quadril acompanha o corpo
       const hx = L.hip[0], hz = L.hip[2];
-      L.root.position.set(hx * yawC + hz * yawS, BODY_Y + P.bob + L.hip[1], -hx * yawS + hz * yawC);
+      L.root.position.set(hx * yawC + hz * yawS + P.shiftX, BODY_Y + P.bob + L.hip[1], -hx * yawS + hz * yawC + P.shiftZ);
       let fx = L.foot[0] * P.footSpread, fy = 0, fz = L.foot[2];
       if (stride > 0) {
         const p = (this.walkPhase + L.phase) % 1;
@@ -213,8 +213,10 @@ export class MantisRig {
         else { const q = (p - 0.5) * 2; fz += stride * (-1 + 2 * q); fy += Math.sin(Math.PI * q) * 0.16; }
       } else if (P.step > 0) {
         const ph = P.stepPh + (i === 0 || i === 3 ? 0 : Math.PI);
-        fy += Math.max(0, Math.sin(ph)) * 0.12 * P.step;
-        fx += Math.sign(fx) * Math.max(0, Math.sin(ph)) * 0.05 * P.step;
+        const up = Math.max(0, Math.sin(ph));
+        fy += up * 0.12 * P.step;
+        fx += Math.sign(fx) * up * 0.05 * P.step + P.shiftX * 0.5;
+        fz += up * P.kick * (i < 2 ? 1 : -0.4) + P.shiftZ * 0.5; // passinho: o pé que sobe vai pra frente
       }
       // pé em relação ao quadril (pés no chão, compensando o salto)
       const dx = fx - L.root.position.x, dz = fz - L.root.position.z;

@@ -12,6 +12,83 @@ const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 const pulse = (x) => Math.max(0, S(x));
 
 export const ANIMS = {
+  // ===== PISEIRO / PASSINHOS (rápidos) =====
+  // Passinho básico: pezinho alternando a cada meia batida, peso de um lado pro outro
+  piseiro(t, P, c) {
+    const b = c.beat * PI;
+    P.shiftX = S(b) * 0.13;
+    P.hipRoll = -S(b) * 0.1; P.tilt = S(b) * 0.06;
+    P.bob = -Math.abs(S(b * 2)) * 0.07;
+    P.step = 1.2; P.stepPh = b * 2; P.kick = 0.14;
+    P.lRaise = 0.55 + S(b * 2) * 0.3; P.rRaise = 0.55 - S(b * 2) * 0.3; P.lOut = 0.3; P.rOut = 0.3;
+    P.lEl = 0.6; P.rEl = 0.6; P.lFold = -1.3; P.rFold = -1.3;
+    P.headRoll = S(b) * 0.14; P.headPitch = Math.abs(S(b * 2)) * 0.08;
+    P.antWig = 1.2; P.mouth = 0;
+  },
+  // Passinho cruzado: gira o quadril e cruza os pés, braços balançando
+  passinho(t, P, c) {
+    const b = c.beat * PI;
+    P.hipYaw = S(b) * 0.38; P.twist = -S(b) * 0.3;
+    P.shiftZ = S(b * 2) * 0.06; P.shiftX = S(b) * 0.06;
+    P.bob = -Math.abs(S(b * 2)) * 0.06;
+    P.step = 1.3; P.stepPh = b * 2; P.kick = 0.2;
+    P.lRaise = 0.7 + S(b) * 0.7; P.rRaise = 0.7 - S(b) * 0.7;
+    P.lFold = -0.9; P.rFold = -0.9; P.lOut = 0.2; P.rOut = 0.2;
+    P.headYaw = -S(b) * 0.3;
+    P.antWig = 1.1;
+  },
+  // Arrasta-pé: desliza de lado com uma garra pra cima
+  arrasta(t, P, c) {
+    const b = c.beat * PI;
+    const side = S(b * 0.5);
+    P.shiftX = side * 0.22;
+    P.lean = 0.12; P.hipRoll = -side * 0.12;
+    P.bob = -Math.abs(S(b * 2)) * 0.08;
+    P.step = 1; P.stepPh = b * 2; P.kick = 0.08;
+    P.lRaise = 2.1 + S(b * 2) * 0.2; P.lEl = 1.3; P.lFold = -1.6 + S(b * 2) * 0.5; P.lOut = 0.4;
+    P.rRaise = 0.7; P.rFold = -1.2; P.rEl = 0.5;
+    P.headRoll = -side * 0.2; P.mouth = 2; P.eye = 1.1;
+    P.antWig = 1.3;
+  },
+  // Tremidinha: ombros e corpo tremendo rápido, pulinho em cada batida
+  tremidinha(t, P, c) {
+    const b = c.beat * PI;
+    P.tilt = S(b * 4) * 0.09; P.twist = S(b * 4) * 0.18;
+    P.hipRoll = -S(b * 4) * 0.05;
+    P.hop = pulse(b * 2) * 0.07;
+    P.bob = -0.05 - Math.abs(S(b * 2)) * 0.05;
+    P.lRaise = 1.2; P.rRaise = 1.2; P.lEl = 0.9; P.rEl = 0.9;
+    P.lFold = -1.4 + S(b * 8) * 0.3; P.rFold = -1.4 - S(b * 8) * 0.3;
+    P.lOut = S(b * 4) * 0.15; P.rOut = -S(b * 4) * 0.15;
+    P.headRoll = S(b * 4) * 0.12; P.mouth = 2; P.eye = 1.15;
+    P.step = 0.6; P.stepPh = b * 2;
+    P.antWig = 1.6;
+  },
+  // Sapateado: bate os pés bem rápido, cabeça marcando o ritmo
+  sapateado(t, P, c) {
+    const b = c.beat * PI;
+    P.step = 1.4; P.stepPh = b * 4; P.kick = 0.06;
+    P.bob = -Math.abs(S(b * 4)) * 0.05;
+    P.lean = 0.15 + S(b * 2) * 0.04;
+    P.squash = 1 - Math.abs(S(b * 4)) * 0.05;
+    P.lRaise = 0.5 + S(b * 4) * 0.25; P.rRaise = 0.5 - S(b * 4) * 0.25;
+    P.lFold = -0.6; P.rFold = -0.6; P.lOut = 0.35; P.rOut = 0.35;
+    P.headPitch = Math.abs(S(b * 2)) * 0.18 - 0.05;
+    P.hipYaw = S(b) * 0.15;
+    P.antWig = 1.2;
+  },
+  // Pulo do piseiro: pulinhos de lado com as garras pra cima
+  pulapula(t, P, c) {
+    const b = c.beat * PI;
+    const j = pulse(b * 2);
+    P.hop = j * 0.18; P.shiftX = S(b) * 0.12;
+    P.squash = 1 + (j - 0.4) * 0.14;
+    P.lRaise = 1.8 + j * 0.5; P.rRaise = 1.8 + j * 0.5; P.lEl = 1.2; P.rEl = 1.2;
+    P.lFold = -1.8; P.rFold = -1.8; P.lOut = 0.5 + S(b) * 0.2; P.rOut = 0.5 - S(b) * 0.2;
+    P.hipRoll = S(b) * 0.1;
+    P.mouth = j > 0.5 ? 2 : 0; P.eye = 1.1; P.antL = j * 0.6; P.antR = j * 0.6;
+  },
+
   // Respirando, olhando em volta
   idle(t, P, c) {
     const k = t + c.seed * 10;
@@ -253,7 +330,8 @@ export const ANIMS = {
   },
 };
 
-export const DANCES = ['sway', 'armsUp', 'disco', 'wiggle', 'bounce', 'robot', 'wave'];
+// danças usadas na festa (só as rápidas, estilo piseiro)
+export const DANCES = ['piseiro', 'passinho', 'arrasta', 'tremidinha', 'sapateado', 'pulapula'];
 
 /** Controla a animação atual de um personagem, com transição suave. */
 export class Animator {

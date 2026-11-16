@@ -40,7 +40,7 @@ function danceSong() {
   const motifC = [[0, 'C5', 0.5], [0.5, 'E5', 0.5], [1, 'A5', 1], [2, 'G5', 0.5], [2.5, 'E5', 0.5], [3, 'C5', 1]];
   const motifD = [[0, 'D5', 0.5], [0.5, 'B4', 0.5], [1, 'G4', 1], [2.5, 'A4', 0.5], [3, 'B4', 1]];
   const bars = [motifA, motifB, motifC, motifD, motifA, motifB, motifC, [[0, 'D5', 1], [1, 'G5', 1], [2, 'C6', 2]]];
-  return { name: 'Festa dos Louvas', bpm: 122, beatsPerBar: 4, chords, bars, style: 'dance' };
+  return { name: 'Festa dos Louvas', bpm: 132, beatsPerBar: 4, chords, bars, style: 'dance' };
 }
 function forroSong() {
   const chords = ['G', 'G', 'C', 'D7', 'G', 'Em', 'C', 'D7'];
@@ -54,9 +54,9 @@ function forroSong() {
     [[0, 'E5', 0.5], [0.5, 'D5', 0.5], [1, 'C5', 0.5], [1.5, 'E5', 0.5], [2, 'G5', 1], [3, 'E5', 1]],
     [[0, 'F#5', 0.5], [0.5, 'A5', 0.5], [1, 'D6', 1], [2, 'C6', 0.5], [2.5, 'A5', 0.5], [3, 'F#5', 1]],
   ];
-  return { name: 'Forró do Louva', bpm: 112, beatsPerBar: 4, chords, bars, style: 'forro' };
+  return { name: 'Piseiro do Louva', bpm: 152, beatsPerBar: 4, chords, bars, style: 'forro' };
 }
-export const SONGS = [danceSong(), forroSong(), marchSong()];
+export const SONGS = [forroSong(), danceSong(), marchSong()]; // 0 e 1 tocam em rodízio; a marcha só quando pedir
 
 // ---------------- relógio (Worker) ----------------
 function makeTicker(cb) {
@@ -81,6 +81,7 @@ export class AudioEngine {
     this.beatOffset = 0;
     this.bpm = SONGS[0].bpm;
     this.files = [];         // músicas MP3 do usuário
+    this.fileBpm = 150;      // ritmo das danças com MP3
     this.fileIdx = 0;
     this.mode = 'synth';     // 'synth' | 'files'
     this.onSong = () => {};
@@ -142,7 +143,7 @@ export class AudioEngine {
     if (this.ticker) this.ticker.stop();
     if (this.audioEl) { this.audioEl.pause(); }
   }
-  next() { if (this.mode === 'files' && this.files.length) { this.fileIdx = (this.fileIdx + 1) % this.files.length; this.play(); } else this.play(this.songIdx + 1); }
+  next() { if (this.mode === 'files' && this.files.length) { this.fileIdx = (this.fileIdx + 1) % this.files.length; this.play(); } else this.play((this.songIdx + 1) % 2); }
   playMarch() { this.mode = 'synth'; this.play(2); }
 
   setFiles(fileList) {
@@ -162,7 +163,7 @@ export class AudioEngine {
     this.audioEl.volume = Math.min(1, this.musicVol * 1.4);
     this.audioEl.play().catch(() => {});
     this.playing = true;
-    this.bpm = 118;
+    this.bpm = this.fileBpm || 150;
     this.onSong(f.name.replace(/\.[^.]+$/, ''));
   }
 
@@ -181,7 +182,7 @@ export class AudioEngine {
         if (this.repeats >= (s.style === 'march' ? 1 : 4)) { // troca de música depois de algumas voltas
           const after = this.songStart + this.nextStep * stepDur;
           const ms = Math.max(0, (after - this.ctx.currentTime) * 1000);
-          setTimeout(() => this.playing && this.song === s && this.play(s.style === 'march' ? 0 : this.songIdx + 1), ms);
+          setTimeout(() => this.playing && this.song === s && this.play(s.style === 'march' ? 0 : (this.songIdx + 1) % 2), ms);
           this.ticker.stop();
           return;
         }

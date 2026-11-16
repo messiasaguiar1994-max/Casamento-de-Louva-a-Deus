@@ -31,6 +31,7 @@ export const DEFAULT_CONFIG = {
   quality: 'high',
   showFps: false,
   musicVolume: 0.55,
+  danceBpm: 150,           // ritmo das danças quando toca música MP3 (piseiro ~150)
   sfxVolume: 0.8,
   commentAction: 'hello',
   followAction: 'celebrate',
