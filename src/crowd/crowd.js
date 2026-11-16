@@ -494,6 +494,13 @@ export class Crowd {
     for (const g of this.list) if (!g.special && g.state === 'placed') { g.anim.play(name, { blend: 0.6 }); g.busy = 0; g.timer = dur; }
   }
 
+  /** raio ocupado pelos convidados (para a vista aérea pegar todo mundo) */
+  extent() {
+    let r = 5.5;
+    for (const g of this.list) r = Math.max(r, Math.hypot(g.pos.x - this.center.x, g.pos.z - this.center.z) + 1.4);
+    return Math.min(r, 26);
+  }
+
   /** escolhe quem ganha close no rodízio da câmera: quem interagiu por último e ainda não apareceu */
   pickForCamera() {
     const now = performance.now();
@@ -687,6 +694,7 @@ export class Crowd {
       if (many && g.role === 'guest') s *= 0.85;
       if (g.role === 'vip') s *= 1.25;
       if (this.focused === g) s = Math.max(s, 1.4) * 1.15; // em close: foto bem grande
+      if (this.overview) s = this.list.length > 60 ? 0.62 : this.list.length > 30 ? 0.75 : 0.9; // vista aérea: todas as fotos visíveis
       const tr = `translate(${x.toFixed(0)}px,${y.toFixed(0)}px) translate(-50%,-100%) scale(${s.toFixed(2)})`;
       if (tr !== g._tr) { g._tr = tr; g.label.style.transform = tr; }
       const z = String(1000 - Math.round(dist * 4));

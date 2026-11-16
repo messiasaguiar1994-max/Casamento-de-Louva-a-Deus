@@ -37,9 +37,7 @@ export class CameraDirector {
 
   update(dt, time) {
     // rodízio: alterna enquadramentos gerais / noivos com close em participantes ('guest')
-    const SHOTS = this.crowdCount > 30
-      ? ['wide', 'guest', 'couple', 'guest', 'medium', 'guest', 'sweep', 'guest', 'high', 'guest']
-      : ['wide', 'guest', 'couple', 'guest', 'medium', 'guest', 'sweep', 'guest'];
+    const SHOTS = ['wide', 'guest', 'couple', 'guest', 'aerial', 'guest', 'medium', 'guest', 'sweep', 'guest', 'aerial', 'guest'];
     if (this.focus) {
       this.focus.t -= dt;
       if (this.focus.t <= 0 || (this.focus.guest && !this.focus.guest.alive)) { this.focus = null; if (this.crowdRef) this.crowdRef.focused = null; }
@@ -91,6 +89,15 @@ export class CameraDirector {
       const a = -0.9 + k * 0.08;
       this.dPos.set(Math.sin(a) * 9, 3.6, Math.cos(a) * 9 + 0.3);
       this.dLook.set(Math.sin(a + 0.6) * 2, 1.4, Math.cos(a + 0.6) * 2);
+    } else if (shot === 'aerial') {
+      // vista aérea: enquadra o baile inteiro (todos os convidados) de cima
+      const R = (this.crowdRef ? this.crowdRef.extent() : 8) * 1.06;
+      const vf = THREE.MathUtils.degToRad(this.cam.fov);
+      const hf = 2 * Math.atan(Math.tan(vf / 2) * this.cam.aspect);
+      const dist = R / Math.tan(hf / 2);
+      const a = time * 0.05;
+      this.dPos.set(Math.sin(a) * dist * 0.22, dist * 0.96, 0.3 + Math.cos(a) * dist * 0.22);
+      this.dLook.set(0, 0, 0.3);
     } else if (shot === 'high') {
       const a = time * 0.04;
       this.dPos.set(Math.sin(a) * 9, 22, Math.cos(a) * 9 + 4);
@@ -98,6 +105,7 @@ export class CameraDirector {
     } else if (shot === 'altar') {
       this.dPos.set(0, 6, 3); this.dLook.set(0, 4.5, -22);
     }
+    if (this.crowdRef) this.crowdRef.overview = !this.focus && shot === 'aerial';
     const f = 1 - Math.exp(-dt * (this.focus ? 2.2 : 1.1));
     this.pos.lerp(this.dPos, f);
     this.look.lerp(this.dLook, f);
