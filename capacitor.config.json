@@ -1,0 +1,6 @@
+{
+  "appId": "com.casamento.louvadeus",
+  "appName": "Casamento Louva-a-Deus",
+  "webDir": "dist",
+  "android": { "allowMixedContent": true }
+}

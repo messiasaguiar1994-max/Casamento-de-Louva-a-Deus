@@ -1,0 +1,21 @@
+{
+  "name": "casamento-louva-a-deus-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Casamento dos Louva-a-Deus: jogo 3D para TikTok LIVE (aplicativo Android + servidor)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  },
+  "devDependencies": {
+    "three": "^0.187.0",
+    "vite": "^8.3.8",
+    "vite-plugin-singlefile": "^2.3.4"
+  }
+}
