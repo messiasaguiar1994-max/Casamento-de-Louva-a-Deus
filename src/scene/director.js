@@ -31,6 +31,7 @@ export class CameraDirector {
   /** close em um convidado */
   focusOn(guest, dur = 5, kind = '') {
     this.focus = { guest, t: dur, kind };
+    if (this.crowdRef) this.crowdRef.focused = guest;
   }
   focusCouple(dur = 6) { this.focus = { couple: true, t: dur }; }
 
@@ -41,7 +42,7 @@ export class CameraDirector {
       : ['wide', 'guest', 'couple', 'guest', 'medium', 'guest', 'sweep', 'guest'];
     if (this.focus) {
       this.focus.t -= dt;
-      if (this.focus.t <= 0 || (this.focus.guest && !this.focus.guest.alive)) this.focus = null;
+      if (this.focus.t <= 0 || (this.focus.guest && !this.focus.guest.alive)) { this.focus = null; if (this.crowdRef) this.crowdRef.focused = null; }
     }
     if (!this.focus) {
       this.shotT += dt;
@@ -116,6 +117,8 @@ export class WeddingDirector {
     this.pairAng = 0;
     this.sep = 0.78;
     this.yawIn = 0.85;
+    this.sepBoost = 0;
+    this._a = new THREE.Vector3(); this._b = new THREE.Vector3();
     this.seq = ['dance', 'dance', 'kiss', 'dance', 'dance', 'celebrate'];
     this.seqIdx = 0;
     this.set('dance');
@@ -178,10 +181,24 @@ export class WeddingDirector {
     this.sep += (tSep - this.sep) * f;
     this.yawIn += (tYaw - this.yawIn) * f;
     this.pairAng += (tAng - this.pairAng) * (1 - Math.exp(-dt * 0.8));
+    this.sep += this.sepBoost;
     const ca = Math.cos(this.pairAng), sa = Math.sin(this.pairAng);
     this.groom.group.position.set(this.center.x - this.sep * ca, 0, this.center.z + this.sep * sa);
     this.bride.group.position.set(this.center.x + this.sep * ca, 0, this.center.z - this.sep * sa);
     this.groom.group.rotation.y = this.pairAng + this.yawIn;
     this.bride.group.rotation.y = this.pairAng - this.yawIn;
+    this.sep -= this.sepBoost;
+  }
+
+  /** depois das poses: se as cabeças (ou a cartola) chegarem perto demais, afasta o casal */
+  resolve(dt) {
+    const g = this.groom.rig.headC, b = this.bride.rig.headC;
+    g.updateWorldMatrix(true, false); b.updateWorldMatrix(true, false);
+    g.getWorldPosition(this._a); b.getWorldPosition(this._b);
+    const MIN = 0.62;
+    let d = this._a.distanceTo(this._b);
+    if (this.groom.hat) { this.groom.hat.getWorldPosition(this._a); d = Math.min(d, this._a.distanceTo(this._b) + 0.08); }
+    if (d < MIN) this.sepBoost = Math.min(0.8, this.sepBoost + (MIN - d) * 0.9);
+    else this.sepBoost = Math.max(0, this.sepBoost - dt * 0.15);
   }
 }

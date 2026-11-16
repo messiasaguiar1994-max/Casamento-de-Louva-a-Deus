@@ -127,6 +127,13 @@ export class Groom extends Hero {
     hat.rotation.set(-0.12, 0, -0.16);
     R.headC.add(hat);
     this.hat = hat;
+    // no beijo a cartola inclina para trás (não bate na noiva)
+    this.extraUpdate = (dt) => {
+      const k = this.anim.name === 'kiss' ? 1 : 0;
+      this._hk = (this._hk || 0) + (k - (this._hk || 0)) * Math.min(1, dt * 4);
+      hat.rotation.x = -0.12 - this._hk * 0.55;
+      hat.position.z = -0.04 - this._hk * 0.08;
+    };
 
     // sobrancelhas elegantes
     for (const e of R.eyes) {

@@ -683,9 +683,10 @@ export class Crowd {
       if (hide !== g._hid) { g._hid = hide; g.label.style.display = hide ? 'none' : ''; }
       if (hide) continue;
       const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;
-      let s = Math.max(0.3, Math.min(0.95, 9.5 / dist));
+      let s = Math.max(0.35, Math.min(1.9, 11 / dist));
       if (many && g.role === 'guest') s *= 0.85;
       if (g.role === 'vip') s *= 1.25;
+      if (this.focused === g) s = Math.max(s, 1.4) * 1.15; // em close: foto bem grande
       const tr = `translate(${x.toFixed(0)}px,${y.toFixed(0)}px) translate(-50%,-100%) scale(${s.toFixed(2)})`;
       if (tr !== g._tr) { g._tr = tr; g.label.style.transform = tr; }
       const z = String(1000 - Math.round(dist * 4));

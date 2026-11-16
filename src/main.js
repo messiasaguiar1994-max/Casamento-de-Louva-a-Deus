@@ -108,6 +108,7 @@ const crowd = new Crowd(scene, {
 });
 crowd.setLimit(cfg.limit);
 camDir.pickGuest = () => crowd.pickForCamera();
+camDir.crowdRef = crowd;
 const wedding = new WeddingDirector(groom, bride, { crowd, fx, audio, camDir });
 resize();
 window.addEventListener('resize', resize);
@@ -127,16 +128,26 @@ function updateCoupleLabels() {
 updateCoupleLabels();
 const _tv = new THREE.Vector3();
 function placeCoupleLabels() {
-  for (const { h, el } of coupleTags) {
+  const pos = coupleTags.map(({ h }) => {
     h.rig.headC.localToWorld(_tv.set(0, 0.7, 0));
     const d = _tv.distanceTo(camera.position);
     _tv.project(camera);
-    if (_tv.z > 1) { el.style.display = 'none'; continue; }
-    el.style.display = '';
-    const s = Math.max(0.45, Math.min(1.35, 14 / d));
-    el.style.transform = `translate(${((_tv.x * 0.5 + 0.5) * viewW).toFixed(1)}px,${((-_tv.y * 0.5 + 0.5) * viewH).toFixed(1)}px) translate(-50%,-100%) scale(${s.toFixed(3)})`;
-    el.style.zIndex = '2000';
+    return { x: (_tv.x * 0.5 + 0.5) * viewW, y: (-_tv.y * 0.5 + 0.5) * viewH, hide: _tv.z > 1, s: Math.max(0.45, Math.min(1.35, 14 / d)) };
+  });
+  // se as plaquinhas dos noivos se encostarem (no beijo), afasta uma da outra
+  const minGap = 95 * Math.max(pos[0].s, pos[1].s) * (viewH / 960);
+  const dx = pos[1].x - pos[0].x;
+  if (Math.abs(dx) < minGap && Math.abs(pos[1].y - pos[0].y) < 60) {
+    const push = (minGap - Math.abs(dx)) / 2 * (dx >= 0 ? 1 : -1);
+    pos[0].x -= push; pos[1].x += push;
   }
+  coupleTags.forEach(({ el }, i) => {
+    const p = pos[i];
+    if (p.hide) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    el.style.transform = `translate(${p.x.toFixed(1)}px,${p.y.toFixed(1)}px) translate(-50%,-100%) scale(${p.s.toFixed(3)})`;
+    el.style.zIndex = '2000';
+  });
 }
 
 // ---------------- eventos da live ----------------
@@ -297,6 +308,7 @@ function tick(dt) {
   wedding.update(dt, time);
   groom.update(dt, time, beat);
   bride.update(dt, time, beat);
+  wedding.resolve(dt);
   crowd.update(dt, time, beat, camera, viewW, viewH);
   fx.update(dt);
   camDir.update(dt, time);

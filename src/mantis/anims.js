@@ -265,8 +265,8 @@ export const ANIMS = {
   // Beijo (noivos)
   kiss(t, P, c) {
     const a = ease(t / 0.8) * (t > 3.4 ? 1 - ease((t - 3.4) / 0.6) : 1);
-    P.lean = 0.32 * a; P.headPitch = 0.15 * a;
-    P.headRoll = 0.3 * a * c.side;
+    P.lean = 0.2 * a; P.headPitch = 0.08 * a;
+    P.headRoll = 0.22 * a * c.side;
     P.mouth = a > 0.4 ? 1 : 0;
     P.eye = 1 - 0.98 * a;
     P.lRaise = 0.6 + 0.4 * a; P.rRaise = 0.6 + 0.4 * a; P.lOut = -0.3 * a; P.rOut = -0.3 * a;

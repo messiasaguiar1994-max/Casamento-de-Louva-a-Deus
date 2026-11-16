@@ -9,9 +9,9 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-tap-highlight
 
 /* --- etiquetas dos convidados (nome + foto) --- */
 .tag { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; transform-origin: 50% 100%; will-change: transform; }
-.tag .pic { width: 2.8em; height: 2.8em; border-radius: 50%; border: 0.22em solid #fff; background: #7cc244 center/cover no-repeat; box-shadow: 0 0.15em 0.5em rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 1em; }
+.tag .pic { width: 4.4em; height: 4.4em; border-radius: 50%; border: 0.22em solid #fff; background: #7cc244 center/cover no-repeat; box-shadow: 0 0.15em 0.5em rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 1em; }
 .tag .pic span { font-size: 1.5em; }
-.tag .nm { margin-top: 0.18em; padding: 0.08em 0.6em; border-radius: 1em; background: rgba(30,10,35,.72); color: #fff; font-weight: 700; font-size: 0.92em; white-space: nowrap; max-width: 9em; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
+.tag .nm { margin-top: 0.18em; padding: 0.08em 0.6em; border-radius: 1em; background: rgba(30,10,35,.72); color: #fff; font-weight: 700; font-size: 1.05em; white-space: nowrap; max-width: 10em; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 2px #000; }
 .tag.vip .pic { border-color: #ffd34d; box-shadow: 0 0 0.9em #ffd34d; }
 .tag.vip .nm { background: linear-gradient(90deg,#b8860b,#ffd34d,#b8860b); color: #3a2200; text-shadow: none; }
 .tag.pad .pic { border-color: #ffb3cf; }
