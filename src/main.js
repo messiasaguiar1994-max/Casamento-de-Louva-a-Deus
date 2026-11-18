@@ -10,7 +10,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildHall } from './scene/hall.js';
-import { Groom, Bride } from './mantis/heroes.js';
+import { Groom3D, Bride3D } from './chars/heroes3d.js';
+import { loadChars } from './chars/models.js';
 import { Crowd } from './crowd/crowd.js';
 import { FX } from './fx/particles.js';
 import { AudioEngine } from './audio/audio.js';
@@ -88,8 +89,9 @@ audio.setMusicVolume(cfg.musicVolume);
 audio.setSfxVolume(cfg.sfxVolume);
 audio.fileBpm = cfg.danceBpm || 150;
 
-const groom = new Groom();
-const bride = new Bride();
+await loadChars();
+const groom = new Groom3D();
+const bride = new Bride3D();
 scene.add(groom.group, bride.group);
 { // sombra de contato dos noivos
   const c = document.createElement('canvas'); c.width = c.height = 128;
@@ -160,7 +162,7 @@ updateCoupleLabels();
 const _tv = new THREE.Vector3();
 function placeCoupleLabels() {
   const pos = coupleTags.map(({ h }) => {
-    h.rig.headC.localToWorld(_tv.set(0, 0.7, 0));
+    h.headTop(_tv); _tv.y += 0.15;
     const d = _tv.distanceTo(camera.position);
     _tv.project(camera);
     return { x: (_tv.x * 0.5 + 0.5) * viewW, y: (-_tv.y * 0.5 + 0.5) * viewH, hide: _tv.z > 1, s: Math.max(0.45, Math.min(1.35, 14 / d)) };

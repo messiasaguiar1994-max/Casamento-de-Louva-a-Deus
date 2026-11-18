@@ -8,8 +8,7 @@
 //    com um corredor livre ligando o arco de entrada à pista.
 // =============================================================
 import * as THREE from 'three';
-import { MantisRig } from '../mantis/rig.js';
-import { Animator, DANCES } from '../mantis/anims.js';
+import { createChar, GUEST_CHARS, DANCES, HEIGHT } from '../chars/models.js';
 import { chitinTex, chitinBump, wingTex } from '../mantis/materials.js';
 import { accessoryDefs, HEAD_ACCS, FACE_ACCS, NECK_ACCS } from '../mantis/accessories.js';
 import { ENTRY } from '../scene/hall.js';
@@ -17,7 +16,7 @@ import { ENTRY } from '../scene/hall.js';
 export const CAP = 240;
 // palco da banda (atrás dos noivos, dos dois lados do tapete)
 const BAND = [[-3.1, -8.1], [-1.85, -9.0], [1.85, -9.0], [3.1, -8.1]];
-const INSTRUMENTS = ['sanfona', 'zabumba', 'triangulo', 'violao']; // capacidade máxima de personagens
+const INSTRUMENTS = ['violao', 'violao', 'violao', 'violao']; // todos tocam violão (animação do Mixamo) // capacidade máxima de personagens
 const AISLE = 1.35;
 const RING0 = 4.0, RING_GAP = 1.75, SPACING = 1.55;
 
@@ -94,34 +93,19 @@ class Guest {
     this.id = info.id;
     this.name = info.name || info.id;
     this.pic = info.pic || '';
-    this.parts = [];
-    this.byKey = {};
     const seed = hash(this.id);
     this.seed = seed;
-    const sink = (parent, key, geo, matKey) => {
-      const o = new THREE.Object3D();
-      parent.add(o);
-      const cap = CAP * (crowd.perGuest[key] || 1);
-      crowd.R.ensure(key, geo, crowd.mats[matKey], cap);
-      const p = { node: o, key, matKey };
-      this.parts.push(p);
-      (this.byKey[key] ||= []).push(o);
-      return o;
-    };
-    this.rig = new MantisRig({ q: 'lo', sink, eyeR: 0.15 });
-    this.anim = new Animator(seed);
-    // aparência
+    // personagem 3D (modelo do Mixamo, com esqueleto)
+    const key = info.model || GUEST_CHARS[Math.floor(seed * 9973) % GUEST_CHARS.length];
+    this.char = createChar(key, { seed });
+    this.anim = this.char.anim;
+    this.rig = { root: this.char.root };
+    crowd.scene.add(this.char.root);
     this.bodyCol = new THREE.Color(BODY_COLORS[(seed * 997) % BODY_COLORS.length | 0]);
-    this.baseBody = this.bodyCol.clone();
-    this.irisCol = new THREE.Color(IRIS_COLORS[(seed * 131) % IRIS_COLORS.length | 0]);
-    this.wingCol = this.bodyCol.clone().lerp(new THREE.Color(0xffffee), 0.45);
     this.accs = {};
-    this.scale = 0.92 + ((seed * 53) % 1) * 0.16;
+    this.scale = 0.9 + ((seed * 53) % 1) * 0.18;
     this.baseScale = this.scale;
     this.role = 'guest';
-    this.setAcc('head', HEAD_ACCS[(seed * 17) % HEAD_ACCS.length | 0], pick(ACC_COLORS));
-    this.setAcc('face', FACE_ACCS[(seed * 29) % FACE_ACCS.length | 0], pick([0xffffff, 0xff5f9e, 0xffd34d, 0x222222]));
-    this.setAcc('neck', NECK_ACCS[(seed * 41) % NECK_ACCS.length | 0], pick(ACC_COLORS));
     // estado
     this.pos = ENTRY.clone();
     this.yaw = 0; this.yawTarget = 0;
@@ -130,33 +114,30 @@ class Guest {
     this.state = 'arriving';
     this.slot = null;
     this.timer = rnd(0.5, 3);
-    this.busy = 0;           // segundos com animação especial (não troca de dança)
-    this.special = null;     // foguete etc.
+    this.busy = 0;
+    this.special = null;
     this.lastActive = performance.now();
-    this.blinkT = rnd(1, 5);
     this.label = crowd.makeLabel(this);
     this.alive = true;
   }
 
+  /** acessórios: só o instrumento do músico (preso no corpo, na frente do peito) */
   setAcc(slot, name, color = 0xffffff) {
     const old = this.accs[slot];
-    if (old) { old.node.parent.remove(old.node); delete this.accs[slot]; }
-    if (!name) return;
+    if (old) { old.node.parent && old.node.parent.remove(old.node); delete this.accs[slot]; }
+    if (!name || slot !== 'instr') return;
     const def = accessoryDefs()[name];
     if (!def) return;
-    const R = this.rig;
-    const parent = { head: R.headC, face: R.headC, neck: R.chestJ, chest: R.chestJ, body: R.body, root: R.inner, instr: R.chestJ }[def.slot];
-    const node = new THREE.Object3D();
-    node.position.set(...def.pos); node.rotation.set(...def.rot);
-    parent.add(node);
-    const key = 'acc_' + name;
-    this.crowd.R.ensure(key, def.geo, name === 'crown' ? this.crowd.mats.accMetal : this.crowd.mats.acc, CAP);
-    this.accs[slot] = { node, key, color: new THREE.Color(color) };
+    const m = new THREE.Mesh(def.geo, this.crowd.accMat);
+    m.position.set(0.12, HEIGHT * 0.55, 0.3);
+    m.rotation.set(0, 0, -0.9);
+    m.scale.setScalar(1.25);
+    this.char.root.add(m);
+    this.accs[slot] = { node: m };
   }
+  setHidden() {}
 
-  setHidden(keys, hidden) { for (const k of keys) for (const o of this.byKey[k] || []) o.visible = !hidden; }
-
-  headPos(v) { return this.rig.headC.localToWorld(v.set(0, 0.55, 0)); }
+  headPos(v) { return this.char.headTop(v); }
 }
 
 // ------------------------------------------------------------------
@@ -169,7 +150,7 @@ export class Crowd {
     this.onFocus = onFocus;
     this.onCount = onCount;
     this.R = new PartRenderer(scene);
-    this.mats = guestMaterials();
+    this.accMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5 });
     this.guests = new Map();
     this.list = [];
     this.limit = 100;
@@ -183,9 +164,6 @@ export class Crowd {
     this._v = new THREE.Vector3();
     this._c = new THREE.Color();
     this._white = new THREE.Color(1, 1, 1);
-    // quantas peças de cada tipo cada louva-a-deus tem
-    this.perGuest = {};
-    new MantisRig({ q: 'lo', sink: (p, key) => { this.perGuest[key] = (this.perGuest[key] || 0) + 1; const o = new THREE.Object3D(); p.add(o); return o; } });
     // sombra (mancha) no chão
     const c = document.createElement('canvas'); c.width = c.height = 64;
     const g = c.getContext('2d'); const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
@@ -316,6 +294,7 @@ export class Crowd {
     if (g.slot) g.slot.guest = null;
     if (g.band) g.band.guest = null;
     g.label.remove();
+    this.scene.remove(g.char.root);
     g.alive = false;
     this.guests.delete(id);
     this.list = this.list.filter((x) => x !== g);
@@ -571,43 +550,28 @@ export class Crowd {
     if (this.interactT <= 0) { this.interactT = rnd(1.5, 3.5); this._interact(); }
 
     this.R.begin();
-    const m = this._m;
     this._frame = (this._frame || 0) + 1;
     const camPos = camera.position;
     for (const g of this.list) {
       this._behave(g, dt, time);
-      // otimização: quem está longe da câmera anima a cada 2 quadros
-      const far = g.pos.distanceToSquared(camPos) > 300 && !g.special && g.state === 'placed';
-      g._acc = (g._acc || 0) + dt;
-      if (far && ((this._frame + (g.seed * 10 | 0)) & 1)) {
-        g.rig.root.position.copy(g.pos);
-        this._pushGuest(g);
-        continue;
-      }
-      const gdt = g._acc; g._acc = 0;
-      // fixar transformações
-      const root = g.rig.root;
+      const root = g.char.root;
       root.position.copy(g.pos);
       root.rotation.y = g.yaw;
       root.scale.setScalar(g.scale);
-      g.blinkT -= gdt;
-      if (g.blinkT < 0) { g.rig.blink = 1; g.blinkT = rnd(2, 6); }
-      if (g.rig.blink > 0) g.rig.blink = Math.max(0, g.rig.blink - gdt / 0.16);
-      const P = g.anim.update(gdt, beat + g.seed * (this.mode ? 0 : 0.25));
-      if (g.special && g.special.type === 'rocket') P.hop += g.special.h || 0;
-      if (g.accs.body) P.footSpread = 1.1;
-      g.rig.apply(P, time + g.seed * 10, g.speed, gdt);
-      root.updateMatrixWorld(true);
-      this._pushGuest(g);
+      // otimização: quem está longe da câmera anima a cada 2 quadros
+      g._acc = (g._acc || 0) + dt;
+      const far = g.pos.distanceToSquared(camPos) > 300 && !g.special && g.state === 'placed';
+      if (!(far && ((this._frame + (g.seed * 10 | 0)) & 1))) { g.char.update(g._acc); g._acc = 0; }
+      this._m.makeScale(g.scale, 1, g.scale).setPosition(g.pos.x, 0.025, g.pos.z);
+      this.R.push('blob', this._m, this._white);
       // efeitos contínuos
       if (g.fxT) {
         g.fxT.t -= dt;
         if (g.fxT.t <= 0) g.fxT = null;
         else if (g.fxT.type === 'special' && Math.random() < 0.35) { this.fx.notes(g.headPos(this._v.clone()), 1); this.fx.sparkles(g.pos.clone().setY(1), 2, [1, 0.6, 0.9], 0.8, 1.5); }
         else if (g.fxT.type === 'hearts' && Math.random() < 0.5) this.fx.hearts(g.headPos(this._v.clone()), 2, 0.6);
-        else if (g.fxT.type === 'vip' && Math.random() < 0.6) this.fx.aura(g.pos.clone().setY(0.3), [1, 0.85, 0.3]);
       }
-      if (g.role === 'vip' && Math.random() < 0.12) this.fx.aura(g.pos.clone().setY(0.2), [1, 0.85, 0.35]);
+      if (g.band && Math.random() < 0.04) this.fx.notes(g.headPos(this._v.clone()), 1);
     }
     this.R.end();
     // holofote dourado
@@ -736,14 +700,14 @@ export class Crowd {
     const v = this._v;
     const many = this.list.length > 90;
     for (const g of this.list) {
-      g.rig.headC.localToWorld(v.set(0, 0.42, 0));
+      g.headPos(v);
       const dist = v.distanceTo(camera.position);
       v.project(camera);
       const hide = v.z > 1 || v.x < -1.2 || v.x > 1.2 || v.y < -1.2 || v.y > 1.3;
       if (hide !== g._hid) { g._hid = hide; g.label.style.display = hide ? 'none' : ''; }
       if (hide) continue;
       const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;
-      let s = Math.max(0.35, Math.min(1.9, 11 / dist));
+      let s = Math.max(0.35, Math.min(1.15, 10 / dist));
       if (many && g.role === 'guest') s *= 0.85;
       if (g.role === 'vip') s *= 1.25;
       if (this.focused === g) s = Math.max(s, 1.4) * 1.15; // em close: foto bem grande

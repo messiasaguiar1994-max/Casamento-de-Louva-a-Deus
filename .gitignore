@@ -1,2 +1,7 @@
 node_modules/
 servidor/node_modules/
+_glb/
+_obj/
+_fbx/
+_anim/
+_preview*.html

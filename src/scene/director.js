@@ -7,7 +7,7 @@
 //    dança animada, beijo, comemoração, surpresa).
 // =============================================================
 import * as THREE from 'three';
-import { DANCES } from '../mantis/anims.js';
+import { DANCES } from '../chars/models.js';
 
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
@@ -205,12 +205,9 @@ export class WeddingDirector {
 
   /** depois das poses: se as cabeças (ou a cartola) chegarem perto demais, afasta o casal */
   resolve(dt) {
-    const g = this.groom.rig.headC, b = this.bride.rig.headC;
-    g.updateWorldMatrix(true, false); b.updateWorldMatrix(true, false);
-    g.getWorldPosition(this._a); b.getWorldPosition(this._b);
-    const MIN = 0.62;
+    this.groom.headPos(this._a); this.bride.headPos(this._b);
+    const MIN = 0.42;
     let d = this._a.distanceTo(this._b);
-    if (this.groom.hat) { this.groom.hat.getWorldPosition(this._a); d = Math.min(d, this._a.distanceTo(this._b) + 0.08); }
     if (d < MIN) this.sepBoost = Math.min(0.8, this.sepBoost + (MIN - d) * 0.9);
     else this.sepBoost = Math.max(0, this.sepBoost - dt * 0.15);
   }

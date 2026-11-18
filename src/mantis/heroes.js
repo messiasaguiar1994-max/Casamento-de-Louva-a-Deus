@@ -325,7 +325,7 @@ function skirtGeo(phase = 0, scale = 1, top = 1) {
   return g;
 }
 
-function bouquetGeo() {
+export function bouquetGeo() {
   const parts = [];
   const cols = [0xffffff, 0xffc4d6, 0xff8fb1, 0xfff1d8, 0xe0325f, 0xffffff, 0xffd7e5];
   let n = 0;
