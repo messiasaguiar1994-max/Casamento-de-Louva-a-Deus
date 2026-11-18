@@ -99,7 +99,7 @@ async function startLive(username) {
   if (conn) { try { await conn.disconnect(); } catch { /* */ } conn = null; }
   current = username;
   status('connecting', `Conectando à live de @${username}...`);
-  const c = new TikTokLiveConnection(username, { enableExtendedGiftInfo: true, processInitialData: false, ...(EULER ? { signApiKey: EULER } : {}) });
+  const c = new TikTokLiveConnection(username, { processInitialData: false, ...(EULER ? { signApiKey: EULER } : {}) }); // igual à Pescaria: sem a lista de presentes (exige plano pago)
   conn = c;
 
   c.on(WebcastEvent.MEMBER, (d) => broadcast({ type: 'join', user: user(d.user) }));
@@ -115,7 +115,7 @@ async function startLive(username) {
     broadcast({
       type: 'gift', user: user(d.user),
       giftName: det.giftName || ext.name || 'Presente',
-      diamonds: det.diamondCount || ext.diamond_count || 0,
+      diamonds: det.diamondCount || ext.diamond_count || d.diamondCount || 0,
       count: d.repeatCount || 1,
     });
   });
