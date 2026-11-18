@@ -37,7 +37,7 @@ export function buildMenu(game, { onPlay }) {
   const m = document.createElement('div');
   m.id = 'menu';
   m.innerHTML = `
-    <h1>💍 Casamento dos Louva-a-Deus <span id="m-sv" class="pill">servidor ?</span></h1>
+    <h1>🧟 Casamento Zumbi <span id="m-sv" class="pill">servidor ?</span></h1>
     <label for="m-usu">Usuário do TikTok da live</label>
     <input type="text" id="m-usu" placeholder="@seu_usuario" autocomplete="off" autocapitalize="off" spellcheck="false" value="${cfg.username ? '@' + esc(cfg.username) : ''}">
     <div class="lin"><button id="m-con">Conectar</button><span id="m-bola" class="bola"></span><span id="m-est">desconectado</span></div>

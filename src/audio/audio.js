@@ -360,6 +360,13 @@ export class AudioEngine {
       case 'cheer': this.sfxCheer(t, 1.6); break;
       case 'kiss': this._smack(t); this._aww(t + 0.35); break;
       case 'chirp': { const f = 1200 + Math.random() * 900; glide(f, f * (Math.random() < 0.5 ? 1.6 : 0.6), 0.09, 'square', 0.025); glide(f * 1.2, f * 1.9, 0.07, 'square', 0.02, t + 0.11); break; }
+      case 'howl': { // uivo de lobo ao longe
+        const g2 = this.ctx.createGain(), o2 = this._osc('sine', 330, t, t + 3.2);
+        o2.frequency.linearRampToValueAtTime(620, t + 0.7); o2.frequency.linearRampToValueAtTime(560, t + 2.2); o2.frequency.linearRampToValueAtTime(300, t + 3.1);
+        const lfo = this._osc('sine', 5, t, t + 3.2), lg = this.ctx.createGain(); lg.gain.value = 12; lfo.connect(lg).connect(o2.frequency);
+        g2.gain.setValueAtTime(0, t); g2.gain.linearRampToValueAtTime(0.07, t + 0.6); g2.gain.linearRampToValueAtTime(0.05, t + 2.4); g2.gain.linearRampToValueAtTime(0, t + 3.2);
+        o2.connect(g2); g2.connect(this.rev); g2.connect(o); break;
+      }
       case 'boing': glide(180, 520, 0.3, 'sine', 0.22); break;
       case 'click': glide(1200, 800, 0.04, 'square', 0.04); break;
       default: break;

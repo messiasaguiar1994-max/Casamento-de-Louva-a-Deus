@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { createChar, GUEST_CHARS, DANCES, HEIGHT } from '../chars/models.js';
 import { chitinTex, chitinBump, wingTex } from '../mantis/materials.js';
 import { accessoryDefs, HEAD_ACCS, FACE_ACCS, NECK_ACCS } from '../mantis/accessories.js';
-import { ENTRY } from '../scene/hall.js';
+import { ENTRY } from '../scene/graveyard.js';
 
 export const CAP = 240;
 // palco da banda (atrás dos noivos, dos dois lados do tapete)

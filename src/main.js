@@ -1,5 +1,5 @@
 // =============================================================
-//  CASAMENTO DOS LOUVA-A-DEUS — jogo para TikTok LIVE
+//  CASAMENTO ZUMBI — jogo para TikTok LIVE
 //  Ponto de entrada: junta cenário, noivos, convidados, efeitos,
 //  áudio, câmera, interface, painel e a ligação com a live.
 // =============================================================
@@ -9,7 +9,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildHall } from './scene/hall.js';
+import { buildHall } from './scene/graveyard.js';
 import { Groom3D, Bride3D } from './chars/heroes3d.js';
 import { loadChars } from './chars/models.js';
 import { Crowd } from './crowd/crowd.js';
@@ -225,7 +225,7 @@ function addTest(n, instant) {
     else setTimeout(() => handleEvent({ type: 'gift', user: u, giftName: 'Rose', diamonds: 1, count: 1 }), i * 350);
   }
 }
-const BOT_NAMES = ['Tia Mantídia', 'Vovô Louvadão', 'Prima Louvinha', 'Dinda Orquídea', 'Tio Galhinho', 'Vovó Florinda', 'Primo Raminho', 'Tia Esmeralda', 'Padrinho Folhão', 'Prima Clorofila', 'Tio Capim', 'Vovó Hortelã', 'Primo Broto', 'Tia Samambaia', 'Tio Trevo', 'Prima Margarida', 'Vovô Bambu', 'Tia Alfavaca', 'Primo Musgo', 'Tia Violeta'];
+const BOT_NAMES = ['Tia Caveirinha', 'Vovô Múmia', 'Prima Assombrada', 'Dinda Morcega', 'Tio Ossinho', 'Vovó Abóbora', 'Primo Fantasma', 'Tia Lápide', 'Padrinho Coveiro', 'Prima Teia', 'Tio Lobisomem', 'Vovó Bruxa', 'Primo Zumbizinho', 'Tia Vampira', 'Tio Frankenstein', 'Prima Gosma', 'Vovô Esqueleto', 'Tia Corujona', 'Primo Uivo', 'Tia Névoa'];
 function syncBots() {
   const bots = crowd.list.filter((g) => g.bot);
   for (let i = bots.length; i < cfg.bots; i++) {
@@ -295,10 +295,12 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('pointerdown', (e) => { if (!(e.target instanceof Node) || (!panelEl.contains(e.target) && e.target !== gear)) start(); });
 
 // ---------------- vida própria da festa ----------------
-let groupT = 90, chirpT = 4, randomT = 6;
+let groupT = 90, chirpT = 4, randomT = 6, howlT = 25;
 function partyLife(dt) {
   groupT -= dt;
   if (groupT <= 0) { groupT = 120 + Math.random() * 60; if (crowd.count > 3) crowd.groupDance(); }
+  howlT -= dt;
+  if (howlT <= 0) { howlT = 35 + Math.random() * 40; audio.sfx('howl'); }
   chirpT -= dt;
   if (chirpT <= 0) { chirpT = 2 + Math.random() * 5; if (crowd.count) audio.sfx('chirp'); }
   randomT -= dt;

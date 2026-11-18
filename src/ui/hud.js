@@ -10,7 +10,7 @@ export class HUD {
   constructor(root) {
     this.root = root;
     root.innerHTML = `
-      <div class="hud-top"><div class="hud-title">💍 Casamento dos Louva-a-Deus 💍</div><div class="hud-count">💚 <b id="hud-n">0</b> convidados na festa</div></div>
+      <div class="hud-top"><div class="hud-title">🧟 Casamento Zumbi 💍</div><div class="hud-count">💚 <b id="hud-n">0</b> convidados na festa</div></div>
       <div class="toasts" id="hud-toasts"></div>
       <div id="hud-gift"></div>
       <div class="fps" id="hud-fps" style="display:none"></div>
