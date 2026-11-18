@@ -6,16 +6,9 @@
 
 /** Ações especiais disponíveis para os presentes */
 export const ACTIONS = {
-  special: 'Dança especial',
-  hearts: 'Corações em volta',
-  padrinho: 'Vira padrinho/madrinha',
-  rocket: 'Foguete',
-  vip: 'Destaque lendário (convidado de honra)',
-  kiss: 'Noivos se beijam',
-  confetti: 'Chuva de confete',
-  groupdance: 'Dança em grupo',
-  celebrate: 'Comemoração',
-  hello: 'Acena',
+  enter: 'Entra na festa (dança)',
+  musician: 'Vira músico da banda',
+  couple: 'Vira noivo ou noiva',
   none: 'Nada',
 };
 
@@ -24,7 +17,6 @@ export const DEFAULT_CONFIG = {
   // endereço do servidor na internet (Render), usado pelo aplicativo .APK
   server: 'https://tiktok-casamento.onrender.com',
   limit: 100,
-  joinOnEnter: true,       // entra na festa quando entra na live
   groomName: 'Noivo',
   brideName: 'Noiva',
   bots: 8,                 // parentes dos noivos (enfeite) quando a festa está vazia
@@ -33,24 +25,19 @@ export const DEFAULT_CONFIG = {
   musicVolume: 0.55,
   danceBpm: 150,           // ritmo das danças quando toca música MP3 (piseiro ~150)
   sfxVolume: 0.8,
-  commentAction: 'hello',
-  followAction: 'celebrate',
-  shareAction: 'celebrate',
   // Regras: primeiro as que têm palavras (nome do presente);
-  // depois, pelo valor em diamantes (vale a maior que couber).
+  // depois, pelo valor em moedas (vale a maior que couber).
   rules: [
-    { words: 'rose, rosa', min: 0, action: 'special' },
-    { words: 'heart, coração, coracao, finger heart, i love you', min: 0, action: 'hearts' },
-    { words: 'rocket, foguete, fireworks', min: 0, action: 'rocket' },
-    { words: 'perfume, kiss, beijo', min: 0, action: 'kiss' },
-    { words: '', min: 1, action: 'hearts' },
-    { words: '', min: 10, action: 'confetti' },
-    { words: '', min: 99, action: 'padrinho' },
-    { words: '', min: 500, action: 'vip' },
+    { words: 'rose, rosa', min: 0, action: 'enter' },
+    { words: 'tiny dino, tiny diny, dino', min: 0, action: 'musician' },
+    { words: 'doughnut, donut, rosquinha, capybara, capivara', min: 0, action: 'couple' },
+    { words: '', min: 1, action: 'enter' },
+    { words: '', min: 10, action: 'musician' },
+    { words: '', min: 30, action: 'couple' },
   ],
 };
 
-const KEY = 'casamento-louva-config-v1';
+const KEY = 'casamento-louva-config-v2'; // v2: só presentes contam (rosa, músico, noivos)
 
 export function loadConfig() {
   try {
@@ -80,5 +67,5 @@ export function resolveGift(cfg, giftName = '', diamonds = 0, count = 1) {
     const min = Number(r.min) || 0;
     if (total >= min && (!best || min >= (Number(best.min) || 0))) best = r;
   }
-  return best ? best.action : 'hearts';
+  return best ? best.action : 'enter';
 }

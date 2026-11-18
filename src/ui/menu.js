@@ -70,9 +70,9 @@ export function buildMenu(game, { onPlay }) {
 
     <details class="cx"><summary>🧪 Testar sem live</summary>
       <div class="dica">Coloca espectadores de mentira na festa para ver se está tudo funcionando.</div>
-      <div class="lin"><button data-t="chega">Alguém chega</button><button data-t="dez">+10 convidados</button></div>
-      <div class="lin"><button data-g="Rose,1">🌹 Rosa</button><button data-g="Finger Heart,5">💗 Coração</button><button data-g="Rocket,20">🚀 Foguete</button></div>
-      <div class="lin"><button data-g="Hat and Mustache,99">🎩 Padrinho</button><button data-g="Lion,500">👑 Destaque</button><button data-t="beijo">💋 Beijo</button></div>
+      <div class="lin"><button data-g="Rose,1">🌹 Rosa (entra)</button><button data-t="dez">+10 com rosa</button></div>
+      <div class="lin"><button data-g="Tiny Diny,10">🦖 Tiny Dino (músico)</button></div>
+      <div class="lin"><button data-g="Doughnut,30">🍩 Rosquinha (noivo/a)</button><button data-g="Capybara,30">🦫 Capivara (noivo/a)</button></div>
     </details>
 
     <details class="cx"><summary>📋 O que está chegando da live</summary><div id="m-log">nada ainda</div></details>
@@ -164,9 +164,7 @@ export function buildMenu(game, { onPlay }) {
   m.querySelectorAll('[data-g]').forEach((b) => {
     b.onclick = () => playAnd(() => { const [name, d] = b.dataset.g.split(','); game.event({ type: 'gift', user: game.testUser(), giftName: name, diamonds: Number(d), count: 1 }); });
   });
-  m.querySelector('[data-t="chega"]').onclick = () => playAnd(() => game.event({ type: 'chat', user: game.testUser(), comment: 'oi!' }));
   m.querySelector('[data-t="dez"]').onclick = () => playAnd(() => game.addTest(10, false));
-  m.querySelector('[data-t="beijo"]').onclick = () => playAnd(() => game.wedding.trigger('kiss'));
 
   if (cfg.server) testaServidor();
   return { el: m };

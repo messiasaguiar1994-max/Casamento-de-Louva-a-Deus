@@ -202,6 +202,47 @@ function parachute() {
   return merge([canopy, ...lines], true);
 }
 
+// ---- instrumentos dos músicos (presos no peito, na frente) ----
+function sanfona() {
+  const parts = [];
+  for (const s of [1, -1]) parts.push(paint(new T.BoxGeometry(0.1, 0.3, 0.2).translate(s * 0.17, 0, 0), s > 0 ? 0xc0392b : 0xc0392b));
+  for (let i = 0; i < 6; i++) parts.push(paint(new T.BoxGeometry(0.035, 0.28, 0.19).translate(-0.1 + i * 0.04, 0, 0), i % 2 ? 0xf4f0e6 : 0x2b2b2b));
+  for (let i = 0; i < 5; i++) parts.push(paint(new T.CylinderGeometry(0.012, 0.012, 0.01, 8).rotateX(Math.PI / 2).translate(0.23, 0.1 - i * 0.05, 0.03), 0xffffff));
+  return merge(parts, true);
+}
+function zabumba() {
+  const drum = new T.CylinderGeometry(0.2, 0.2, 0.18, 24).rotateX(Math.PI / 2);
+  const parts = [paint(drum, 0x8e5a2b)];
+  for (const z of [0.092, -0.092]) parts.push(paint(new T.CircleGeometry(0.195, 24).translate(0, 0, z * (z > 0 ? 1 : 1)).rotateY(z > 0 ? 0 : Math.PI), 0xf3ead2));
+  for (const z of [0.09, -0.09]) parts.push(paint(new T.TorusGeometry(0.2, 0.012, 6, 24).translate(0, 0, z), 0xd8b04a));
+  for (let i = 0; i < 8; i++) { const a = (i / 8) * Math.PI * 2; parts.push(paint(new T.CylinderGeometry(0.005, 0.005, 0.18, 4).rotateX(Math.PI / 2).translate(Math.cos(a) * 0.205, Math.sin(a) * 0.205, 0), 0xffffff)); }
+  return merge(parts, true);
+}
+function triangulo() {
+  const parts = [];
+  const pts = [[0, 0.16], [-0.14, -0.1], [0.14, -0.1]];
+  for (let i = 0; i < 2; i++) {
+    const [a, b] = [pts[i], pts[i + 1]];
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const c = new T.CylinderGeometry(0.008, 0.008, len, 6);
+    c.rotateZ(-Math.atan2(b[0] - a[0], b[1] - a[1]));
+    c.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0);
+    parts.push(paint(c, 0xd9d9e8));
+  }
+  const base = new T.CylinderGeometry(0.008, 0.008, 0.2, 6).rotateZ(Math.PI / 2).translate(0.02, -0.1, 0);
+  parts.push(paint(base, 0xd9d9e8));
+  parts.push(paint(new T.TorusGeometry(0.02, 0.004, 4, 8).translate(0, 0.19, 0), 0xffffff));
+  return merge(parts, true);
+}
+function violao() {
+  const body = new T.SphereGeometry(0.15, 18, 12).scale(1, 1.25, 0.35).translate(0, -0.08, 0);
+  const upper = new T.SphereGeometry(0.11, 16, 10).scale(1, 1.1, 0.35).translate(0, 0.12, 0);
+  const hole = new T.CircleGeometry(0.045, 16).translate(0, 0.02, 0.056);
+  const neck = new T.BoxGeometry(0.05, 0.42, 0.03).translate(0, 0.42, 0.01);
+  const head = new T.BoxGeometry(0.07, 0.09, 0.03).translate(0, 0.66, 0.01);
+  return merge([paint(body, 0xd08a3c), paint(upper, 0xd08a3c), paint(hole, 0x2a1a0a), paint(neck, 0x5a3a1a), paint(head, 0x3a240e)], true);
+}
+
 let _defs;
 /** Definição de cada acessório: onde fica preso e posição. */
 export function accessoryDefs() {
@@ -221,6 +262,10 @@ export function accessoryDefs() {
     dressSkirt: { slot: 'body', geo: dressSkirt(), pos: [0, 0, 0], rot: [0, 0, 0] },
     crown: { slot: 'head', geo: crown(), pos: [0, 0.24, -0.02], rot: [-0.15, 0, 0.1] },
     cape: { slot: 'chest', geo: cape(), pos: [0, 0, 0], rot: [0, 0, 0] },
+    sanfona: { slot: 'instr', geo: sanfona().scale(1.6, 1.6, 1.6), pos: [0, 0.36, 0.3], rot: [0, 0, 0] },
+    zabumba: { slot: 'instr', geo: zabumba().scale(1.5, 1.5, 1.5), pos: [0, 0.28, 0.32], rot: [0, 0, 0] },
+    triangulo: { slot: 'instr', geo: triangulo().scale(1.7, 1.7, 1.7), pos: [0.22, 0.55, 0.32], rot: [0, 0, 0.2] },
+    violao: { slot: 'instr', geo: violao().scale(1.5, 1.5, 1.5), pos: [-0.05, 0.3, 0.27], rot: [0, 0, -0.9] },
     parachute: { slot: 'root', geo: parachute(), pos: [0, 2.6, 0], rot: [0, 0, 0] },
   };
   return _defs;

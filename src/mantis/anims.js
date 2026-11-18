@@ -12,6 +12,36 @@ const ease = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 const pulse = (x) => Math.max(0, S(x));
 
 export const ANIMS = {
+  // ===== MÚSICOS =====
+  sanfona(t, P, c) {
+    const b = c.beat * PI, o = S(b) * 0.35;
+    P.lRaise = 1.0; P.rRaise = 1.0; P.lEl = 1.2; P.rEl = 1.2;
+    P.lOut = 0.25 + o; P.rOut = 0.25 + o; P.lFold = -1.1; P.rFold = -1.1;
+    P.bob = -Math.abs(S(b * 2)) * 0.05; P.hipRoll = S(b) * 0.08;
+    P.headRoll = S(b) * 0.25; P.eye = 0.7; P.step = 0.8; P.stepPh = b * 2;
+  },
+  zabumba(t, P, c) {
+    const b = c.beat * PI;
+    P.lRaise = 0.9; P.lEl = 0.8; P.lFold = -0.8; P.lOut = 0.1;
+    P.rRaise = 0.9 + Math.max(0, S(b * 2)) * 0.8; P.rEl = 0.9; P.rFold = -1.2; P.rOut = 0.25;
+    P.bob = -Math.abs(S(b * 2)) * 0.06; P.headPitch = Math.abs(S(b * 2)) * 0.15;
+    P.step = 0.8; P.stepPh = b * 2; P.mouth = 0;
+  },
+  triangulo(t, P, c) {
+    const b = c.beat * PI;
+    P.lRaise = 1.5; P.lEl = 1.0; P.lFold = -1.3; P.lOut = 0.35;
+    P.rRaise = 1.2 + S(b * 4) * 0.25; P.rEl = 1.0; P.rFold = -1.2 + S(b * 4) * 0.4; P.rOut = 0.1;
+    P.hipRoll = S(b) * 0.1; P.bob = -Math.abs(S(b * 2)) * 0.05;
+    P.headRoll = -S(b) * 0.15; P.step = 1; P.stepPh = b * 2;
+  },
+  violao(t, P, c) {
+    const b = c.beat * PI;
+    P.lRaise = 1.4; P.lEl = 1.4; P.lFold = -1.6; P.lOut = 0.5;
+    P.rRaise = 0.8 + S(b * 4) * 0.3; P.rEl = 0.9; P.rFold = -1.0; P.rOut = -0.1;
+    P.lean = 0.08; P.hipRoll = S(b) * 0.08; P.bob = -Math.abs(S(b * 2)) * 0.05;
+    P.headRoll = S(b) * 0.2; P.mouth = 2; P.step = 0.9; P.stepPh = b * 2;
+  },
+
   // ===== PISEIRO / PASSINHOS (rápidos) =====
   // Passinho básico: pezinho alternando a cada meia batida, peso de um lado pro outro
   piseiro(t, P, c) {

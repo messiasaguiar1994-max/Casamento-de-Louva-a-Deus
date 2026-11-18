@@ -24,8 +24,7 @@ export function buildPanel(el, game) {
   <div class="row"><input type="text" id="p-user" placeholder="seu @usuario" value="${esc(cfg.username)}" autocapitalize="off" autocomplete="off" spellcheck="false"><button class="pri" id="p-conn">Conectar</button></div>
   <div class="row" id="p-srv-row">Servidor: <input type="text" id="p-srv" value="${esc(cfg.server)}" placeholder="https://seu-servidor.onrender.com" autocapitalize="off" autocomplete="off" spellcheck="false"></div>
   <div class="status" id="p-status">—</div>
-  <div class="row"><label><input type="checkbox" id="p-enter" ${cfg.joinOnEnter ? 'checked' : ''}> Entra na festa quem entra na live</label></div>
-  <div class="hint">Quem comenta, curte, segue ou manda presente sempre entra.</div>
+  <div class="hint">Só presentes contam: rosa entra na festa, 10 moedas vira músico, 30 moedas vira noivo/noiva.</div>
 
   <h3>Convidados</h3>
   <div class="row"><input type="text" id="p-name" placeholder="nome"><input type="text" id="p-pic" placeholder="link da foto (opcional)"></div>
@@ -38,18 +37,15 @@ export function buildPanel(el, game) {
 
   <h3>Testar eventos</h3>
   <div class="row">Quem: <select id="p-who" style="flex:1"></select></div>
-  <div class="row"><button id="e-join">Entrou</button><button id="e-chat">Comentou</button><button id="e-like">Curtiu</button><button id="e-follow">Seguiu</button><button id="e-share">Compartilhou</button></div>
   <div class="row"><input type="text" id="g-name" placeholder="nome do presente" value="Rose" style="flex:1"><input type="number" id="g-dia" value="1" title="diamantes"><input type="number" id="g-cnt" value="1" title="quantidade"></div>
   <div class="row"><button class="pri" id="g-send">Simular presente</button></div>
-  <div class="row"><button data-g="Rose,1">🌹 Rosa</button><button data-g="Finger Heart,5">💗 Coração</button><button data-g="Rocket,20">🚀 Foguete</button><button data-g="Perfume,20">💋 Perfume</button><button data-g="Doughnut,30">🍩 30</button><button data-g="Hat and Mustache,99">🎩 99</button><button data-g="Lion,500">🦁 500+</button></div>
+  <div class="row"><button data-g="Rose,1">🌹 Rosa</button><button data-g="Tiny Diny,10">🦖 Tiny Dino (músico)</button><button data-g="Doughnut,30">🍩 Rosquinha (noivo/a)</button><button data-g="Capybara,30">🦫 Capivara (noivo/a)</button></div>
 
   <h3>Ações dos presentes</h3>
   <div class="hint">Palavras = parte do nome do presente (em inglês ou português). Sem palavras, vale o valor mínimo em diamantes (o maior que couber).</div>
   <div class="rule" style="font-weight:700"><span>Palavras</span><span>Mín. 💎</span><span>Ação</span><span></span></div>
   <div id="p-rules"></div>
   <div class="row"><button id="r-add">+ Regra</button><button id="r-def">Restaurar padrão</button></div>
-  <div class="row">Comentário: <select id="a-comment">${actOpts(cfg.commentAction)}</select></div>
-  <div class="row">Seguir: <select id="a-follow">${actOpts(cfg.followAction)}</select> Compartilhar: <select id="a-share">${actOpts(cfg.shareAction)}</select></div>
 
   <h3>Noivos</h3>
   <div class="row"><input type="text" id="n-groom" value="${esc(cfg.groomName)}" placeholder="nome do noivo"><input type="text" id="n-bride" value="${esc(cfg.brideName)}" placeholder="nome da noiva"></div>
@@ -85,7 +81,6 @@ export function buildPanel(el, game) {
     cfg.server = game.cleanServer($('p-srv').value); $('p-srv').value = cfg.server;
     save(); game.connect(cfg.username);
   };
-  $('p-enter').onchange = (e) => { cfg.joinOnEnter = e.target.checked; save(); };
   game.onStatus = (state, msg) => { const s = $('p-status'); s.textContent = msg; s.className = 'status ' + (state === 'live' ? 'ok' : state === 'error' ? 'err' : ''); };
 
   // --- convidados ---
@@ -119,9 +114,6 @@ export function buildPanel(el, game) {
     const g = id && game.crowd.guests.get(id);
     return g ? { id: g.id, name: g.name, pic: g.pic } : game.testUser();
   };
-  for (const [btn, type] of [['e-join', 'join'], ['e-chat', 'chat'], ['e-like', 'like'], ['e-follow', 'follow'], ['e-share', 'share']]) {
-    $(btn).onclick = () => game.event({ type, user: who(), comment: 'Viva os noivos!', likeCount: 5 });
-  }
   $('g-send').onclick = () => game.event({ type: 'gift', user: who(), giftName: $('g-name').value || 'Rose', diamonds: Number($('g-dia').value) || 1, count: Number($('g-cnt').value) || 1 });
   el.querySelectorAll('[data-g]').forEach((b) => {
     b.onclick = () => { const [name, d] = b.dataset.g.split(','); game.event({ type: 'gift', user: who(), giftName: name, diamonds: Number(d), count: 1 }); };
@@ -142,12 +134,9 @@ export function buildPanel(el, game) {
     save();
   };
   $('p-rules').onclick = (e) => { const d = e.target.dataset.del; if (d !== undefined) { cfg.rules.splice(Number(d), 1); save(); drawRules(); } };
-  $('r-add').onclick = () => { cfg.rules.push({ words: '', min: 1000, action: 'vip' }); save(); drawRules(); };
+  $('r-add').onclick = () => { cfg.rules.push({ words: '', min: 100, action: 'couple' }); save(); drawRules(); };
   $('r-def').onclick = () => { cfg.rules = structuredClone(DEFAULT_CONFIG.rules); save(); drawRules(); };
   drawRules();
-  $('a-comment').onchange = (e) => { cfg.commentAction = e.target.value; save(); };
-  $('a-follow').onchange = (e) => { cfg.followAction = e.target.value; save(); };
-  $('a-share').onchange = (e) => { cfg.shareAction = e.target.value; save(); };
 
   // --- noivos ---
   $('n-groom').oninput = (e) => { cfg.groomName = e.target.value; save(); game.updateCoupleLabels(); };
@@ -159,7 +148,7 @@ export function buildPanel(el, game) {
   $('t-cele').onclick = () => { game.crowd.react('celebrate'); game.audio.sfx('cheer'); };
   $('t-surp').onclick = () => { game.crowd.react('surprise'); game.audio.sfx('boing'); };
   $('t-clap').onclick = () => game.crowd.react('clap');
-  $('t-conf').onclick = () => game.crowd.act(game.crowd.list[0] || { alive: false }, 'confetti');
+  $('t-conf').onclick = () => { if (game.crowd.list[0]) game.crowd.act(game.crowd.list[0], 'confetti'); };
   $('t-anim-go').onclick = () => {
     const a = $('t-anim').value;
     for (const g of game.crowd.list) if (!g.special) { g.anim.play(a, { dur: 6, next: 'piseiro' }); g.busy = 6; }

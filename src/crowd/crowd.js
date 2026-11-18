@@ -14,7 +14,10 @@ import { chitinTex, chitinBump, wingTex } from '../mantis/materials.js';
 import { accessoryDefs, HEAD_ACCS, FACE_ACCS, NECK_ACCS } from '../mantis/accessories.js';
 import { ENTRY } from '../scene/hall.js';
 
-export const CAP = 240; // capacidade máxima de personagens
+export const CAP = 240;
+// palco da banda (atrás dos noivos, dos dois lados do tapete)
+const BAND = [[-3.1, -8.1], [-1.85, -9.0], [1.85, -9.0], [3.1, -8.1]];
+const INSTRUMENTS = ['sanfona', 'zabumba', 'triangulo', 'violao']; // capacidade máxima de personagens
 const AISLE = 1.35;
 const RING0 = 4.0, RING_GAP = 1.75, SPACING = 1.55;
 
@@ -142,7 +145,7 @@ class Guest {
     const def = accessoryDefs()[name];
     if (!def) return;
     const R = this.rig;
-    const parent = { head: R.headC, face: R.headC, neck: R.chestJ, chest: R.chestJ, body: R.body, root: R.inner }[def.slot];
+    const parent = { head: R.headC, face: R.headC, neck: R.chestJ, chest: R.chestJ, body: R.body, root: R.inner, instr: R.chestJ }[def.slot];
     const node = new THREE.Object3D();
     node.position.set(...def.pos); node.rotation.set(...def.rot);
     parent.add(node);
@@ -196,6 +199,16 @@ export class Crowd {
     scene.add(this.vipLight, this.vipLight.target);
     this.vip = null;
     // lugar de destaque: no corredor da frente, entre os noivos e a câmera
+    // palco da banda
+    this.bandSlots = BAND.map(([x, z], i) => ({ pos: new THREE.Vector3(x, 0.18, z), inst: INSTRUMENTS[i], guest: null, since: 0 }));
+    const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a33, roughness: 0.6 });
+    const gold = new THREE.MeshStandardMaterial({ color: 0xe9b949, metalness: 1, roughness: 0.3 });
+    for (const s of this.bandSlots) {
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.8, 0.18, 32), wood);
+      st.position.set(s.pos.x, 0.09, s.pos.z); st.receiveShadow = true; scene.add(st);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.77, 0.03, 8, 40), gold);
+      rim.rotation.x = Math.PI / 2; rim.position.set(s.pos.x, 0.18, s.pos.z); scene.add(rim);
+    }
     this.vipSlot = { pos: new THREE.Vector3(0, 0, this.center.z + 2.7), r: 2.7, a: Math.PI / 2, ring: -1, guest: null };
   }
 
@@ -213,6 +226,7 @@ export class Crowd {
         const a = (i / cnt) * Math.PI * 2 + (ring % 2) * (Math.PI / cnt);
         const x = Math.cos(a) * r, z = Math.sin(a) * r + this.center.z;
         if (Math.abs(x) < AISLE) continue; // corredor (atrás: do arco até a pista; frente: visão da câmera)
+        if (BAND.some(([bx, bz]) => Math.hypot(x - bx, z - bz) < 1.5)) continue; // palco da banda
         ringSlots.push({ pos: new THREE.Vector3(x, 0, z), r, a, ring, guest: null });
       }
       // ordem de preenchimento espalhada (não lota um lado só)
@@ -300,6 +314,7 @@ export class Crowd {
     if (!g) return;
     if (poof) this.fx.poof(g.pos, [1, 1, 1]);
     if (g.slot) g.slot.guest = null;
+    if (g.band) g.band.guest = null;
     g.label.remove();
     g.alive = false;
     this.guests.delete(id);
@@ -339,8 +354,8 @@ export class Crowd {
   updateLabel(g) {
     const el = g.label;
     const initial = (g.name || '?').trim().charAt(0).toUpperCase();
-    const roleTxt = g.role === 'padrinho' ? 'Padrinho' : g.role === 'madrinha' ? 'Madrinha' : g.role === 'vip' ? '⭐ Convidado de honra' : '';
-    el.className = 'tag' + (g.role === 'vip' ? ' vip' : g.role === 'padrinho' || g.role === 'madrinha' ? ' pad' : '');
+    const roleTxt = g.role === 'musician' ? '🎵 Músico' : g.role === 'padrinho' ? 'Padrinho' : g.role === 'madrinha' ? 'Madrinha' : g.role === 'vip' ? '⭐ Convidado de honra' : '';
+    el.className = 'tag' + (g.role === 'vip' || g.role === 'musician' ? ' vip' : g.role === 'padrinho' || g.role === 'madrinha' ? ' pad' : '');
     el.innerHTML = `${roleTxt ? `<div class="role">${roleTxt}</div>` : ''}<div class="pic"${g.pic ? ` style="background-image:url('${encodeURI(g.pic).replace(/'/g, '%27')}')"` : ''}>${g.pic ? '' : `<span>${escapeHtml(initial)}</span>`}</div><div class="nm">${escapeHtml(g.name)}</div>`;
     if (!g.pic) el.querySelector('.pic').style.background = '#' + g.bodyCol.getHexString();
   }
@@ -473,10 +488,42 @@ export class Crowd {
     this.onFocus(g, 8, 'vip');
   }
 
+  /** vira músico da banda (presente de 10 moedas). Se a banda estiver cheia, sai o mais antigo. */
+  makeMusician(g) {
+    if (!g || !g.alive) return;
+    let slot = this.bandSlots.find((s) => s.guest === g);
+    if (!slot) {
+      slot = this.bandSlots.find((s) => !s.guest) || [...this.bandSlots].sort((a, b) => a.since - b.since)[0];
+      if (slot.guest) this.leaveBand(slot.guest);
+      if (g.slot) g.slot.guest = null;
+      slot.guest = g; g.slot = slot; g.band = slot;
+      g.role = 'musician';
+      g.setAcc('face', null);
+      g.setAcc('instr', slot.inst, 0xffffff);
+      g.path = [slot.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0.3;
+      this.updateLabel(g);
+    }
+    slot.since = performance.now();
+    g.lastActive = performance.now();
+    this.fx.notes(g.headPos(this._v.clone()), 8);
+    this.fx.sparkles(g.pos.clone().setY(1.2), 25, [1, 0.85, 0.4], 1, 2);
+    this.sfx('special');
+    this.onFocus(g, 5);
+  }
+  leaveBand(g) {
+    const slot = g.band;
+    if (slot) slot.guest = null;
+    g.band = null; g.role = 'guest';
+    g.setAcc('instr', null);
+    const s = this.freeSlot();
+    g.slot = s; if (s) { s.guest = g; g.path = [s.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0; }
+    this.updateLabel(g);
+  }
+
   /** todos reagem (palmas, comemoração, surpresa) */
   react(type, except = null) {
     for (const g of this.list) {
-      if (g === except || g.special || g.state !== 'placed') continue;
+      if (g === except || g.special || g.state !== 'placed' || g.band) continue;
       const delay = Math.random() * 0.5;
       const dur = type === 'surprise' ? 1.4 : type === 'clap' ? 2.5 : 2.4;
       setTimeout(() => {
@@ -491,7 +538,7 @@ export class Crowd {
   /** dança em grupo sincronizada */
   groupDance(name = pick(DANCES), dur = 16) {
     this.mode = name; this.modeT = dur;
-    for (const g of this.list) if (!g.special && g.state === 'placed') { g.anim.play(name, { blend: 0.6 }); g.busy = 0; g.timer = dur; }
+    for (const g of this.list) if (!g.special && g.state === 'placed' && !g.band) { g.anim.play(name, { blend: 0.6 }); g.busy = 0; g.timer = dur; }
   }
 
   /** raio ocupado pelos convidados (para a vista aérea pegar todo mundo) */
@@ -601,7 +648,7 @@ export class Crowd {
         if (!g.path.length) {
           g.state = 'placed'; g.speed = 0;
           g.yawTarget = this._faceCenter(g);
-          g.anim.play(this.mode || pick(DANCES), { blend: 0.4 });
+          g.anim.play(g.band ? g.band.inst : (this.mode || pick(DANCES)), { blend: 0.4 });
           g.timer = rnd(6, 14);
         }
       } else {
@@ -615,6 +662,12 @@ export class Crowd {
     }
     // ---- no lugar: dança e interage ----
     g.speed = 0;
+    if (g.band) { // músico: toca de frente para a pista
+      g.yawTarget = this._faceCenter(g);
+      g.yaw += angDiff(g.yaw, g.yawTarget) * Math.min(1, dt * 3);
+      if (g.anim.name !== g.band.inst && g.busy <= 0) g.anim.play(g.band.inst, { blend: 0.4 });
+      return;
+    }
     if (g.faceT > 0) { g.faceT -= dt; }
     else if (g.role === 'vip') g.yawTarget = Math.sin(time * 0.4) * 0.4; // convidado de honra olha para a câmera
     else g.yawTarget = this._faceCenter(g) + Math.sin(time * 0.3 + g.seed * 20) * 0.35;
@@ -665,7 +718,7 @@ export class Crowd {
   }
 
   _interact() {
-    const free = this.list.filter((g) => g.state === 'placed' && !g.special && g.busy <= 0);
+    const free = this.list.filter((g) => g.state === 'placed' && !g.special && g.busy <= 0 && !g.band);
     if (free.length < 2) return;
     const a = pick(free);
     let best = null, bd = 2.6;

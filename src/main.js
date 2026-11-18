@@ -19,6 +19,7 @@ import { HUD } from './ui/hud.js';
 import { buildPanel } from './ui/panel.js';
 import { TikTokLink, cleanServer, IS_APP } from './net/tiktok.js';
 import { buildMenu } from './ui/menu.js';
+import { startGiftHints } from './ui/giftIcons.js';
 import { loadConfig, saveConfig, resolveGift } from './config.js';
 
 const params = new URLSearchParams(location.search);
@@ -99,6 +100,8 @@ scene.add(groom.group, bride.group);
 }
 
 const hud = new HUD(document.getElementById('hud'));
+const giftHints = startGiftHints(document.getElementById('hud'));
+if (params.has('hints')) giftHints.showNow();
 const camDir = new CameraDirector(camera);
 const crowd = new Crowd(scene, {
   fx, labelsEl: document.getElementById('labels'),
@@ -121,9 +124,37 @@ const coupleTags = [groom, bride].map((h, i) => {
   document.getElementById('labels').appendChild(el);
   return { h, el };
 });
+// quem mandou presente de 30 moedas vira o noivo ou a noiva (nome e foto em cima)
+const couple = { groom: null, bride: null };
+function coupleHtml(role, who, fallback) {
+  const pic = who && who.pic ? `<div class="pic" style="background-image:url('${encodeURI(who.pic).replace(/'/g, '%27')}')"></div>`
+    : who ? `<div class="pic" style="background:#7cc244"><span>${escapeHtml((who.name || '?').charAt(0).toUpperCase())}</span></div>` : '';
+  return `<div class="role">💍 ${role}</div>${pic}<div class="nm">${escapeHtml(who ? who.name : fallback)}</div>`;
+}
 function updateCoupleLabels() {
-  coupleTags[0].el.innerHTML = `<div class="role">💍 NOIVO</div><div class="nm">${escapeHtml(cfg.groomName || 'Noivo')}</div>`;
-  coupleTags[1].el.innerHTML = `<div class="role">💍 NOIVA</div><div class="nm">${escapeHtml(cfg.brideName || 'Noiva')}</div>`;
+  coupleTags[0].el.innerHTML = coupleHtml('NOIVO', couple.groom, cfg.groomName || 'Noivo');
+  coupleTags[1].el.innerHTML = coupleHtml('NOIVA', couple.bride, cfg.brideName || 'Noiva');
+}
+function becomeCouple(u) {
+  const now = performance.now();
+  let key = couple.groom && couple.groom.id === u.id ? 'groom' : couple.bride && couple.bride.id === u.id ? 'bride' : null;
+  if (!key) {
+    key = !couple.groom ? 'groom' : !couple.bride ? 'bride' : (couple.groom.t <= couple.bride.t ? 'groom' : 'bride');
+    const old = couple[key];
+    if (old) setTimeout(() => crowd.add({ id: old.id, name: old.name, pic: old.pic }), 1500); // o anterior volta para a festa
+    const g = crowd.guests.get(u.id);
+    if (g) crowd.remove(u.id); // sai da roda e assume o lugar no altar
+  }
+  couple[key] = { id: u.id, name: u.name || u.id, pic: u.pic, t: now };
+  updateCoupleLabels();
+  wedding.trigger('celebrate');
+  setTimeout(() => wedding.trigger('kiss'), 3000);
+  fx.confettiRain(new THREE.Vector3(0, 0, 0.3), 9, 380);
+  fx.firework(new THREE.Vector3(-4, 9, -2), [1, 0.85, 0.3]);
+  fx.firework(new THREE.Vector3(4, 9.5, -2), [1, 0.5, 0.8]);
+  audio.sfx('vip');
+  crowd.react('clap');
+  camDir.focusCouple(7);
 }
 updateCoupleLabels();
 const _tv = new THREE.Vector3();
@@ -151,7 +182,6 @@ function placeCoupleLabels() {
 }
 
 // ---------------- eventos da live ----------------
-const likeGate = new Map();
 function handleEvent(e) {
   const u = e.user;
   if (!u || !u.id) return;
@@ -159,44 +189,23 @@ function handleEvent(e) {
     const n = u.name || u.id;
     game.onLog(e.type === 'join' ? `${n} entrou` : e.type === 'chat' ? `${n}: ${e.comment || ''}` : e.type === 'gift' ? `${n} enviou ${e.giftName}${e.count > 1 ? ' x' + e.count : ''}` : e.type === 'follow' ? `${n} seguiu` : `${n} compartilhou`);
   }
+  // REGRAS: só presentes contam.
+  //   rosa (ou qualquer presente) -> entra na festa
+  //   10 moedas (Tiny Dino)       -> vira músico da banda
+  //   30 moedas (Rosquinha/Capivara) -> vira noivo ou noiva
+  if (e.type !== 'gift') return;
+  hud.gift(u, e.giftName || 'presente', e.count || 1);
+  const action = resolveGift(cfg, e.giftName, e.diamonds, e.count);
+  if (action === 'none') return;
+  if (action === 'couple') { becomeCouple(u); return; }
+  const isCouple = [couple.groom, couple.bride].some((c) => c && c.id === u.id);
+  if (isCouple) { wedding.trigger(action === 'musician' ? 'kiss' : 'celebrate'); return; } // noivo/noiva mandando presente
   const known = crowd.guests.has(u.id);
-  const join = () => {
-    const g = crowd.add({ id: u.id, name: u.name || u.id, pic: u.pic });
-    if (g && !known) hud.toast(u, 'chegou na festa! 💚');
-    return g;
-  };
-  switch (e.type) {
-    case 'join':
-      if (cfg.joinOnEnter) join();
-      break;
-    case 'chat': {
-      const g = join();
-      if (g && known) runAction(g, cfg.commentAction);
-      break;
-    }
-    case 'like': {
-      const g = join();
-      const now = performance.now();
-      if (g && known && now - (likeGate.get(u.id) || 0) > 1500) { likeGate.set(u.id, now); crowd.act(g, 'like'); }
-      break;
-    }
-    case 'follow': { const g = join(); if (g) setTimeout(() => runAction(g, cfg.followAction), known ? 0 : 3500); break; }
-    case 'share': { const g = join(); if (g) setTimeout(() => runAction(g, cfg.shareAction), known ? 0 : 3500); break; }
-    case 'gift': {
-      const g = join();
-      hud.gift(u, e.giftName || 'presente', e.count || 1);
-      const action = resolveGift(cfg, e.giftName, e.diamonds, e.count);
-      if (g) setTimeout(() => runAction(g, action), known ? 200 : 3200);
-      break;
-    }
-  }
-}
-function runAction(g, action) {
-  if (!g || !g.alive || !action || action === 'none') return;
-  if (action === 'kiss') { wedding.trigger('kiss'); crowd.act(g, 'celebrate'); return; }
-  if (action === 'groupdance') { crowd.groupDance(); crowd.act(g, 'special'); return; }
-  if (action === 'vip' || action === 'rocket') wedding.trigger('surprise');
-  crowd.act(g, action);
+  const g = crowd.add({ id: u.id, name: u.name || u.id, pic: u.pic });
+  if (!g) return;
+  if (!known) hud.toast(u, 'chegou na festa! 💚');
+  if (action === 'musician') setTimeout(() => crowd.makeMusician(g), known ? 200 : 2500);
+  else if (known && !g.band) crowd.act(g, 'special'); // mandou rosa de novo: dança especial
 }
 
 // ---------------- convidados de teste e parentes ----------------
@@ -211,7 +220,7 @@ function addTest(n, instant) {
   for (let i = 0; i < n; i++) {
     const u = testUser();
     if (instant) crowd.addInstant(u);
-    else setTimeout(() => handleEvent({ type: 'chat', user: u }), i * 350);
+    else setTimeout(() => handleEvent({ type: 'gift', user: u, giftName: 'Rose', diamonds: 1, count: 1 }), i * 350);
   }
 }
 const BOT_NAMES = ['Tia Mantídia', 'Vovô Louvadão', 'Prima Louvinha', 'Dinda Orquídea', 'Tio Galhinho', 'Vovó Florinda', 'Primo Raminho', 'Tia Esmeralda', 'Padrinho Folhão', 'Prima Clorofila', 'Tio Capim', 'Vovó Hortelã', 'Primo Broto', 'Tia Samambaia', 'Tio Trevo', 'Prima Margarida', 'Vovô Bambu', 'Tia Alfavaca', 'Primo Musgo', 'Tia Violeta'];
@@ -225,6 +234,7 @@ function syncBots() {
 }
 function reset() {
   crowd.clear();
+  couple.groom = couple.bride = null; updateCoupleLabels();
   wedding.trigger('dance');
   syncBots();
 }
@@ -344,8 +354,8 @@ if (SHOT) {
   const steps = Math.round(Number(params.get('t') || 2) / 0.05);
   const gift = params.get('gift');
   for (let i = 0; i < steps; i++) {
-    if (gift && i === 10) { const g = crowd.list.find((x) => !x.bot) || crowd.list[0]; runAction(g, gift); }
-    if (params.has('arrive') && i === 4) handleEvent({ type: 'chat', user: testUser() });
+    if (gift && i === 10) { const g = crowd.list.find((x) => !x.bot) || crowd.list[0]; if (gift === 'musician') { for (const x of crowd.list.slice(0, 4)) crowd.makeMusician(x); } else if (gift === 'couple') becomeCouple({ id: g.id, name: g.name, pic: g.pic }); else crowd.act(g, gift); }
+    if (params.has('arrive') && i === 4) handleEvent({ type: 'gift', user: testUser(), giftName: 'Rose', diamonds: 1, count: 1 });
     tick(0.05);
   }
   composer.render();

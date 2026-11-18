@@ -44,25 +44,16 @@ O app deixa a tela sempre acesa e em tela cheia. Se ficar travando, ele baixa a 
 
 ## 4. O que acontece na festa
 
-| Na live | No jogo |
+Só presentes contam (comentar e curtir não colocam ninguém na festa):
+
+| Presente | No jogo |
 |---|---|
-| Entrou na live | O convidado aparece sob o arco de flores e caminha até o seu lugar |
-| Comentou | Entra na festa (se ainda não estava) e acena |
-| Curtiu | Pulinho com coraçãozinho |
-| Seguiu / compartilhou | Comemoração com confete |
-| 🌹 Rosa | Dança especial com brilhos e notas musicais |
-| 💗 Coração | Corações em volta do personagem |
-| 🚀 Foguete | Lançado para o alto, fogos, volta de paraquedas e fica tonto |
-| 💋 Perfume | Os noivos se beijam |
-| Presente de 10+ 💎 | Chuva de confete na festa toda |
-| Presente de 99+ 💎 | Vira **padrinho** (terno e cartola) ou **madrinha** (vestido e coroa de flores) |
-| Presente de 500+ 💎 | **Convidado de honra**: fica dourado, ganha coroa e capa, vai para a frente dos noivos com holofote |
+| 🌹 Rosa | Entra na festa (chega pelo arco e dança). Se já está na festa, faz a dança especial |
+| 🦖 Tiny Dino (10 moedas) | Vira **músico** da banda (sanfona, zabumba, triângulo ou violão). Banda de 4: quando lota, sai o mais antigo |
+| 🍩 Rosquinha / 🦫 Capivara (30 moedas) | Vira o **noivo** ou a **noiva** (nome e foto em cima dos noivos). O anterior volta para a festa |
 
-Tudo isso pode ser mudado no **Painel → Ações dos presentes**, sem mexer no código.
-
-Sozinhos, os noivos alternam entre dança romântica, dança animada, beijo e comemoração. A câmera troca de ângulo e dá close em quem mandou presente. A cada 2 ou 3 minutos todos fazem uma dança em grupo.
-
-**Sobre restrição do TikTok:** a tela não mostra nenhum texto pedindo presente nem prometendo prêmio. As regras, você explica falando na live.
+A cada 1 minuto aparecem discretamente as figurinhas da rosa, do Tiny Dino, da rosquinha e da capivara, sem nenhum texto.
+A câmera alterna sozinha entre a festa, os noivos, a banda, a vista aérea e closes nos convidados.
 
 ## 5. Painel (tecla P)
 

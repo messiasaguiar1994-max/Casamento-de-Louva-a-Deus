@@ -37,7 +37,7 @@ export class CameraDirector {
 
   update(dt, time) {
     // rodízio: alterna enquadramentos gerais / noivos com close em participantes ('guest')
-    const SHOTS = ['wide', 'guest', 'couple', 'guest', 'aerial', 'guest', 'medium', 'guest', 'sweep', 'guest', 'aerial', 'guest'];
+    const SHOTS = ['wide', 'guest', 'couple', 'guest', 'aerial', 'guest', 'band', 'guest', 'medium', 'guest', 'sweep', 'guest', 'aerial', 'guest'];
     if (this.focus) {
       this.focus.t -= dt;
       if (this.focus.t <= 0 || (this.focus.guest && !this.focus.guest.alive)) { this.focus = null; if (this.crowdRef) this.crowdRef.focused = null; }
@@ -89,6 +89,11 @@ export class CameraDirector {
       const a = -0.9 + k * 0.08;
       this.dPos.set(Math.sin(a) * 9, 3.6, Math.cos(a) * 9 + 0.3);
       this.dLook.set(Math.sin(a + 0.6) * 2, 1.4, Math.cos(a + 0.6) * 2);
+    } else if (shot === 'band') {
+      // a banda tocando, atrás dos noivos
+      const a = Math.sin(time * 0.15);
+      this.dPos.set(a * 1.5, 7.2, 5.5);
+      this.dLook.set(0, 0.9, -8.4);
     } else if (shot === 'aerial') {
       // vista aérea: enquadra o baile inteiro (todos os convidados) de cima
       const R = (this.crowdRef ? this.crowdRef.extent() : 8) * 1.06;
