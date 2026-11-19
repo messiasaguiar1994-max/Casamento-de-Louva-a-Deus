@@ -56,8 +56,17 @@ const DEFS = {
 export const INSTRUMENT_KINDS = Object.keys(DEFS);
 
 const T = { models: {}, sockets: {} };
+// boca fechada em "bico" para quem toca sopro: tampa a boca aberta do modelo com pele
+// (cor e tamanho de cada personagem) e faz os lábios franzidos em volta do bocal
+// quanto a boca fica à frente do ponto medido (boca aberta funda: o bocal fica nos lábios, não lá dentro)
+const MOUTH_DZ = { noivo_zumbi: 0.23, goblin: 0.05, zumbi_azul: 0.01, noiva: 0.01 };
+const LIPS = {
+  zumbi_azul: { col: 0x3a9590, w: 0.2, h: 0.12, dy: -0.015, dz: 0.02 }, noiva: { col: 0x3a9590, w: 0.2, h: 0.12, dy: -0.015, dz: 0.02 },
+  noivo_zumbi: { col: 0x5e8a2c, w: 0.42, h: 0.32, dy: 0.06, dz: 0.02, d: 0.4 }, palhaco: { col: 0xcfcfd2, w: 0.14, h: 0.08, dy: 0, dz: 0 },
+  goblin: { col: 0x6aa83a, w: 0.3, h: 0.15, dy: 0.04, dz: 0.065, d: 0.18 }, tung_tung: { col: 0x5a3f2a, w: 0.2, h: 0.09, dy: 0, dz: 0.005 },
+};
 // altura da boca de cada modelo (medida olhando o rosto de cada um)
-const MOUTH_DY = { zumbi_azul: -0.13, noiva: -0.13, noivo_zumbi: -0.17, palhaco: -0.17, goblin: -0.14, tung_tung: -0.18 };
+const MOUTH_DY = { zumbi_azul: -0.17, noiva: -0.17, noivo_zumbi: -0.17, palhaco: -0.17, goblin: -0.14, tung_tung: -0.18 };
 
 export async function loadInstruments() {
   const L = new GLTFLoader();
@@ -95,7 +104,7 @@ export function socketsFor(key) {
     out[name] = { bone: boneName, local };
   };
   const my = H.y + hs * 0.28 + (MOUTH_DY[key] || 0);
-  make('mouth', B.Head ? 'Head' : 'Neck', new THREE.Vector3(H.x, my, front(H.x, my, H.z, H.z + hs * 0.45)));
+  make('mouth', B.Head ? 'Head' : 'Neck', new THREE.Vector3(H.x, my, front(H.x, my, H.z, H.z + hs * 0.45) + (MOUTH_DZ[key] || 0)));
   const sb = B.Spine || B.Hips, S = wp(sb);
   const by = S.y + 0.05;
   make('belly', B.Spine1 ? 'Spine1' : sb.name, new THREE.Vector3(S.x, by, front(S.x, by, S.z, S.z + 0.25)));
@@ -170,6 +179,17 @@ export class InstrumentPlayer {
     inst.scale.setScalar(d.size);
     inst.position.set(...d.pos); inst.rotation.set(...d.rot);
     this.socket.add(inst); this.inst = inst;
+    if (d.wind) {
+      const L = LIPS[char.key] || { col: 0x777777, w: 0.16, h: 0.09 };
+      const skin = new THREE.MeshStandardMaterial({ color: L.col, roughness: 0.75 });
+      const lipMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(L.col).multiplyScalar(0.62), roughness: 0.6 });
+      const lips = new THREE.Group();
+      const cover = new THREE.Mesh(new THREE.SphereGeometry(0.5, 20, 12), skin);   // boca fechada
+      const dep = L.d || 0.09; cover.scale.set(L.w, L.h, dep); cover.position.set(0, L.dy || 0, (L.dz || 0) - dep / 3); lips.add(cover);   // grosso o bastante p/ fechar a boca vista de lado
+      const bico = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.013, 8, 18), lipMat);  // lábios em bico no bocal
+      bico.position.z = 0.012 + Math.max(0, (L.dz || 0) - 0.01); bico.scale.set(1.15, 0.9, 1.3); lips.add(bico);
+      this.socket.add(lips); this.lips = lips;
+    }
     this.mk = {}; this.base = {};
     for (const s of ['L', 'R']) { const h = d.hands[s]; const o = new THREE.Object3D(); o.position.set(...h.p); inst.add(o); this.mk[s] = o; this.base[s] = new THREE.Vector3(...h.p); }
     this.fret = 0; this.fretT = 0;
