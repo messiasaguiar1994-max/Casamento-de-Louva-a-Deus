@@ -51,7 +51,7 @@ export async function loadChars(onProgress = () => {}) {
       if (o.isMesh) {
         o.frustumCulled = false;
         const mats = Array.isArray(o.material) ? o.material : [o.material];
-        for (const m of mats) { m.metalness = 0; m.roughness = Math.max(0.55, m.roughness ?? 0.6); if (m.map) m.map.anisotropy = 4; }
+        for (const m of mats) { m.metalness = 0; m.roughness = Math.max(0.55, m.roughness ?? 0.6); if (m.map) { m.map.anisotropy = 8; m.map.needsUpdate = true; } }
       }
     });
     sc.updateMatrixWorld(true);

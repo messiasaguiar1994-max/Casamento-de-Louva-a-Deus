@@ -26,6 +26,10 @@ import { loadConfig, saveConfig, resolveGift } from './config.js';
 const params = new URLSearchParams(location.search);
 const SHOT = params.has('shot');           // modo de teste (captura de tela)
 const cfg = loadConfig();
+// modo OBS (fonte de navegador): ?obs=1&user=seu_usuario
+const OBS = params.has('obs');
+if (OBS) cfg.quality = 'high';
+if (params.get('user')) cfg.username = params.get('user').replace(/^@/, '');
 if (params.get('q')) cfg.quality = params.get('q');
 
 // ---------------- renderizador 9:16 ----------------
@@ -261,7 +265,7 @@ gear.id = 'gear'; gear.textContent = '⚙'; gear.title = 'Painel (P)';
 gear.onclick = () => panelEl.classList.toggle('hidden');
 document.body.appendChild(gear);
 const APP = IS_APP || params.has('menu');
-if (APP) gear.style.display = 'none'; // no app o painel abre pelo ⚙ Menu
+if (APP || OBS) gear.style.display = 'none'; // no app o painel abre pelo ⚙ Menu; no OBS fica limpo
 if (!SHOT && !APP) game.connect(cfg.username);
 
 // início: um clique libera o som (regra dos navegadores)
@@ -275,7 +279,8 @@ function start() {
   if (startEl) startEl.remove();
 }
 if (!SHOT && APP) buildMenu(game, { onPlay: start });
-if (!SHOT && !APP) {
+if (OBS && !SHOT) setTimeout(start, 500); // OBS libera o som sozinho
+if (!SHOT && !APP && !OBS) {
   startEl = document.createElement('div');
   startEl.style.cssText = 'position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:30%;z-index:5;cursor:pointer;pointer-events:auto';
   startEl.innerHTML = '<div style="background:rgba(30,10,35,.8);color:#fff;font-weight:800;font-size:1.4em;padding:.7em 1.4em;border-radius:2em;border:3px solid #ffb3cf">🎉 Toque para começar a festa</div>';
@@ -339,7 +344,7 @@ function frame() {
 // se ficar travando (poucos quadros por segundo), baixa a qualidade sozinho
 let slowFor = 0;
 function autoQuality(fps) {
-  if (time < 12 || cfg.quality === 'low') return;
+  if (OBS || time < 12 || cfg.quality === 'low') return;
   slowFor = fps < 26 ? slowFor + 0.5 : 0;
   if (slowFor >= 5) {
     slowFor = 0;
