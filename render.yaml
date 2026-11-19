@@ -1,13 +1,17 @@
-# Servidor do Casamento dos Louva-a-Deus no Render (plano gratis)
+# Servidor do Casamento Zumbi no Render (plano gratis)
+# Sem rootDir: assim qualquer mudanca no jogo (dist/) tambem dispara o deploy automatico.
 services:
   - type: web
     name: tiktok-casamento
     runtime: node
     plan: free
-    rootDir: servidor
-    buildCommand: npm install
-    startCommand: node server.js
+    buildCommand: cd servidor && npm install
+    startCommand: node servidor/server.js
     healthCheckPath: /status
+    buildFilter:
+      paths:
+        - dist/**
+        - servidor/**
     envVars:
       - key: EULER_API_KEY
         sync: false
