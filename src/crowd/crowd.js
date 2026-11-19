@@ -22,8 +22,9 @@ export const CAP = 240;
 function bandSlots() {
   // palco largo: fileiras dos dois lados dos noivos, da frente para trás, do meio para fora
   const out = [], fz = STAGE.z + STAGE.d / 2;
-  for (const z of [fz - 0.65, fz - 1.75, fz - 2.85, fz - 3.95]) {
-    for (const x of [2.15, 3.05, 3.95, 4.85, 5.6]) {
+  [fz - 0.65, fz - 1.95, fz - 3.25, fz - 4.4].forEach((z, row) => {
+    for (const x0 of [2.25, 3.6, 4.95]) {
+      const x = x0 + (row % 2) * 0.45;   // fileiras desencontradas: um não fica atrás do outro
       for (const sx of [-1, 1]) {
         const X = sx * x;
         if (z < fz - 3.5 && x < 3.3) continue;   // atrás do arco
@@ -31,7 +32,7 @@ function bandSlots() {
         if (!hit) out.push([X, z]);
       }
     }
-  }
+  });
   return out;
 }
 const BAND = bandSlots();

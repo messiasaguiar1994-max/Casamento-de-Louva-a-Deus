@@ -109,7 +109,7 @@ export class CameraDirector {
 
   update(dt, time) {
     // rodízio: alterna enquadramentos gerais / noivos com close em participantes ('guest')
-    const SHOTS = ['wide', 'guest', 'couple', 'guest', 'aerial', 'guest', 'band', 'guest', 'medium', 'guest', 'sweep', 'guest', 'aerial', 'guest'];
+    const SHOTS = ['wide', 'guest', 'pan', 'couple', 'guest', 'band', 'aerial', 'guest', 'pan', 'medium', 'guest', 'band', 'pan', 'aerial'];
     if (this.focus) {
       this.focus.t -= dt;
       if (this.focus.t <= 0 || (this.focus.guest && !this.focus.guest.alive)) { this.focus = null; if (this.crowdRef) this.crowdRef.focused = null; }
@@ -119,6 +119,9 @@ export class CameraDirector {
       if (this.shotT > this.shotDur && !this.locked) {
         this.shotT = 0; this.shotIdx = (this.shotIdx + 1) % SHOTS.length;
         this.shot = SHOTS[this.shotIdx]; this.shotDur = 8 + Math.random() * 4;
+        // banda sem músicos: não filma o palco vazio
+        if (this.shot === 'band' && !(this.crowdRef && this.crowdRef.list.some((g) => g.band && g.state === 'placed'))) this.shot = 'pan';
+        if (this.shot === 'pan') { this.shotDur = 16; this.panDir = this.panDir === 1 ? -1 : 1; }
         if (this.shot === 'guest') {
           const g = this.pickGuest ? this.pickGuest() : null;
           if (g) { this.focusOn(g, 4.5, 'tour'); this.shotT = this.shotDur; } // ao terminar o close, segue o rodízio
@@ -166,12 +169,24 @@ export class CameraDirector {
       const x = -6 + ((k * 0.9) % 12);
       this.dPos.set(x, 3.4, FZ + 5);
       this.dLook.set(x * 0.6, 1.2, FZ - 1.5);
+    } else if (shot === 'pan') {
+      // passeio lento da esquerda para a direita (ou volta) pela plateia, de frente para os rostos
+      const u = THREE.MathUtils.clamp(k / this.shotDur, 0, 1), e = u * u * (3 - 2 * u);
+      const ext = this.crowdRef ? Math.min(9, Math.max(4, this.crowdRef.list.reduce((m, g) => g.band ? m : Math.max(m, Math.abs(g.pos.x)), 0))) : 6;
+      const x = (this.panDir || 1) * (-ext + 2 * ext * e);
+      this.dPos.set(x * 0.9, 2.0, FLOOR.z0 - 1.8);
+      this.dLook.set(x, 1.55, FLOOR.z0 + 3.0);
     } else if (shot === 'band') {
+      // mira onde estão os músicos (nunca o palco vazio)
+      const B = this.crowdRef ? this.crowdRef.list.filter((g) => g.band && g.state === 'placed') : [];
+      const side = 1;
+      const S = B.filter((g) => Math.sign(g.pos.x) === (Math.sin(time * 0.07) > 0 ? 1 : -1));
+      const grp = S.length ? S : B.filter((g) => Math.sign(g.pos.x) === Math.sign(B[0] ? B[0].pos.x : 1));
+      const cx = grp.length ? grp.reduce((a, g) => a + g.pos.x, 0) / grp.length : side * 3.5;
+      const cz = grp.length ? grp.reduce((a, g) => a + g.pos.z, 0) / grp.length : C.z;
       const a = Math.sin(time * 0.15);
-      // um lado da banda de cada vez (os noivos não tampam)
-      const side = Math.sin(time * 0.07) > 0 ? 1 : -1;
-      this.dPos.set(side * (4.2 + a * 0.8), C.y + 2.6, C.z + 6.2);
-      this.dLook.set(side * 3.8, C.y + 1.1, C.z - 0.6);
+      this.dPos.set(cx * 0.9 + a * 0.6, C.y + 2.5, cz + 6.4);
+      this.dLook.set(cx, C.y + 1.1, cz);
     } else if (shot === 'aerial') {
       // vista aérea: enquadra a pista inteira (todos os convidados) de cima
       const ctr = this.crowdRef ? this.crowdRef.center : new THREE.Vector3(0, 0, FZ);

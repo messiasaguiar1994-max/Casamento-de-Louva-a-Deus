@@ -513,10 +513,31 @@ export function buildHall(scene, { quality = 'high' } = {}) {
     const z = g.scene; const box = new THREE.Box3().setFromObject(z), size = box.getSize(new THREE.Vector3());
     const s = 6 / size.y; z.scale.setScalar(s);
     z.position.set(-((box.min.x + box.max.x) / 2) * s, -box.min.y * s, -((box.min.z + box.max.z) / 2) * s);
-    const holder = new THREE.Group(); holder.add(z); holder.position.set(13.5, 0, -10.5); holder.rotation.y = -0.6; hall.add(holder);
-    z.traverse((o) => { if (o.isMesh) { o.castShadow = true; } });
-    const eye = new THREE.PointLight(0xff3020, 8, 10, 2); eye.position.set(12.5, 4.8, -8.5); hall.add(eye);
-    updaters.push((t) => { holder.position.y = Math.sin(t * 1.2) * 0.1; eye.intensity = 6 + Math.sin(t * 4) * 3; });
+    // fica ao fundo, à direita do palco, grandão, batendo os pés de leve no ritmo
+    const holder = new THREE.Group(); holder.add(z); holder.position.set(7.4, 0, -12.2); holder.rotation.y = -0.35; hall.add(holder);
+    holder.scale.setScalar(1.2);
+    const fu = { uT: { value: 0 }, uBase: { value: 0 }, uFoot: { value: 2.0 }, uC: { value: new THREE.Vector3() }, uR: { value: new THREE.Vector3() } };
+    holder.updateMatrixWorld(true);
+    holder.getWorldPosition(fu.uC.value); fu.uR.value.set(1, 0, 0).applyQuaternion(holder.quaternion);
+    z.traverse((o) => {
+      if (!o.isMesh) return;
+      o.castShadow = true;
+      const m = o.material = o.material.clone();
+      m.onBeforeCompile = (sh) => {
+        Object.assign(sh.uniforms, fu);
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uT, uBase, uFoot; uniform vec3 uC, uR;')
+          .replace('#include <project_vertex>', `
+            vec4 wpz = modelMatrix * vec4(transformed, 1.0);
+            float hh = wpz.y - uBase;
+            float sd = sign(dot(wpz.xyz - uC, uR));
+            float lift = max(0.0, sin(uT * 3.6 + sd * 1.5708)) * 0.32 * smoothstep(uFoot, 0.0, hh) * step(0.15, abs(dot(wpz.xyz - uC, uR)));
+            wpz.y += lift;
+            vec4 mvPosition = viewMatrix * wpz;
+            gl_Position = projectionMatrix * mvPosition;`);
+      };
+    });
+    const eye = new THREE.PointLight(0xff3020, 8, 10, 2); eye.position.set(7.0, 5.8, -10.2); hall.add(eye);
+    updaters.push((t) => { fu.uT.value = t; holder.rotation.z = Math.sin(t * 1.8) * 0.015; eye.intensity = 6 + Math.sin(t * 4) * 3; });
   });
 
   // ---------------- luzes gerais ----------------
