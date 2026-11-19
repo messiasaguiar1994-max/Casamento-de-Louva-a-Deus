@@ -525,7 +525,7 @@ export class Crowd {
     this.fx.notes(g.headPos(this._v.clone()), 8);
     this.fx.sparkles(g.pos.clone().setY(1.2), 25, [1, 0.85, 0.4], 1, 2);
     this.sfx('special');
-    this.onFocus(g, 5);
+    this.onFocus(g, g.state === 'arriving' ? 40 : 5, g.state === 'arriving' ? 'musician' : 'tour');
   }
   leaveBand(g) {
     const slot = g.band;
@@ -591,7 +591,8 @@ export class Crowd {
     this.entranceBusy -= dt;
     this.clock = (this.clock || 0) + dt;
     while (this.entranceQ.length && !(this.entranceQ[0].alive && this.entranceQ[0].state === 'arriving')) this.entranceQ.shift();
-    if (this.entranceBusy <= 0 && this.entranceQ.length && !this.entranceQ[0].waiting) {
+    const musicianWalk = this.focused && this.focused.band && this.focused.state === 'arriving';  // não corta a subida do músico
+    if (!musicianWalk && this.entranceBusy <= 0 && this.entranceQ.length && !this.entranceQ[0].waiting) {
       const g = this.entranceQ.shift();
       this.onFocus(g, 6.5, 'entrance'); this.entranceBusy = 6.5;
     }

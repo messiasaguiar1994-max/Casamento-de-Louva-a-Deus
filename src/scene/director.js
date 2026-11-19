@@ -122,6 +122,9 @@ export class CameraDirector {
     const SHOTS = ['wide', 'guest', 'pan', 'couple', 'guest', 'band', 'aerial', 'guest', 'pan', 'medium', 'guest', 'band', 'pan', 'aerial'];
     if (this.focus) {
       this.focus.t -= dt;
+      // músico: acompanha até chegar ao palco e depois mostra ~4 s tocando
+      const fg = this.focus.guest;
+      if (this.focus.kind === 'musician' && fg && !this.focus.done && fg.state === 'placed' && fg.player) { this.focus.done = true; this.focus.t = 4.5; this.focus.ang = undefined; }
       if (this.focus.t <= 0 || (this.focus.guest && !this.focus.guest.alive)) { this.focus = null; if (this.crowdRef) this.crowdRef.focused = null; }
     }
     if (!this.focus) {
@@ -150,7 +153,11 @@ export class CameraDirector {
       if (this.focus.kind === 'rocket') {
         this.dLook.copy(head);
         this.dPos.set(g.pos.x * 0.5, Math.max(4, head.y * 0.7), g.pos.z * 0.5 + 12);
-      } else if (this.focus.kind === 'entrance') {
+      } else if (this.focus.kind === 'musician' && this.focus.done) {
+        // já no palco: de frente, um pouco acima, tocando o instrumento
+        this.dLook.set(g.pos.x, g.pos.y + 1.15, g.pos.z);
+        this.dPos.set(g.pos.x * 0.85 + Math.sin(time * 0.4) * 0.4, g.pos.y + 2.2, g.pos.z + 4.6);
+      } else if (this.focus.kind === 'entrance' || (this.focus.kind === 'musician' && g.state === 'arriving')) {
         // entrada: câmera vai na frente de quem chega, bem pertinho, acompanhando
         this.dLook.copy(head).add(new THREE.Vector3(0, -0.7, 0));
         this.dPos.set(head.x + face.x * 4.6 + face.z * 1.2, head.y + 1.1, head.z + face.z * 4.6 - face.x * 1.2);
