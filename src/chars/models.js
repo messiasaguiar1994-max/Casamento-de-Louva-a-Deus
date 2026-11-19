@@ -15,8 +15,9 @@ import urlAzul from '../assets/chars/zumbi_azul.glb?url';
 import urlGoblin from '../assets/chars/goblin.glb?url';
 import urlTung from '../assets/chars/tung_tung.glb?url';
 import urlPalhaco from '../assets/chars/palhaco.glb?url';
+import urlNoiva from '../assets/chars/noiva.glb?url';
 
-export const CHAR_URLS = { noivo_zumbi: urlNoivo, zumbi_azul: urlAzul, goblin: urlGoblin, tung_tung: urlTung, palhaco: urlPalhaco };
+export const CHAR_URLS = { noivo_zumbi: urlNoivo, zumbi_azul: urlAzul, goblin: urlGoblin, tung_tung: urlTung, palhaco: urlPalhaco, noiva: urlNoiva };
 export const GUEST_CHARS = ['zumbi_azul', 'goblin', 'tung_tung', 'palhaco', 'noivo_zumbi'];
 // danças rápidas (Mixamo)
 export const DANCES = ['samba', 'step', 'booty', 'twist', 'slide', 'soul', 'runningman', 'house', 'charleston', 'chicken'];
@@ -52,7 +53,7 @@ export async function loadChars(onProgress = () => {}) {
       if (o.isMesh) {
         o.frustumCulled = false;
         const mats = Array.isArray(o.material) ? o.material : [o.material];
-        for (const m of mats) { m.metalness = 0; m.roughness = Math.max(0.55, m.roughness ?? 0.6); if (m.map) { m.map.anisotropy = 8; m.map.needsUpdate = true; } }
+        for (const m of mats) { if (m.name === 'renda') { m.alphaTest = 0.35; m.transparent = false; m.depthWrite = true; m.side = THREE.DoubleSide; } if (m.name === 'cetim' || m.name === 'rosa') m.side = THREE.DoubleSide; if (m.name === 'cetim') m.color.setRGB(0.72, 0.69, 0.68); if (m.name === 'renda') m.color.setRGB(0.86, 0.84, 0.83); m.metalness = 0; m.roughness = Math.max(0.55, m.roughness ?? 0.6); if (m.map) { m.map.anisotropy = 8; m.map.needsUpdate = true; } }
       }
     });
     sc.updateMatrixWorld(true);

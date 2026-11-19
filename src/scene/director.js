@@ -146,8 +146,8 @@ export class CameraDirector {
         this._frame(this.focus, g, dt);
       }
     } else if (this.focus && this.focus.couple) {
-      this.dLook.set(0, C.y + 1.75, C.z);
-      this.dPos.set(Math.sin(time * 0.2) * 1.0, C.y + 2.2, C.z + 4.6);
+      this.dLook.set(0, C.y + 1.45, C.z);
+      this.dPos.set(Math.sin(time * 0.2) * 1.0, C.y + 2.4, C.z + 6.8);  // os dois inteiros, com as fotos em cima
     } else if (shot === 'wide') {
       // de frente: palco, altar e a pista inteira
       const a = Math.sin(time * 0.06);

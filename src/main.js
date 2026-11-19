@@ -10,7 +10,8 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildHall, FLOOR } from './scene/club.js';
-import { loadInstruments } from './chars/instruments.js';
+import { loadInstruments, socketsFor } from './chars/instruments.js';
+import { createChar } from './chars/models.js';
 import { Groom3D, Bride3D } from './chars/heroes3d.js';
 import { loadChars } from './chars/models.js';
 import { Crowd } from './crowd/crowd.js';
@@ -120,6 +121,7 @@ const crowd = new Crowd(scene, {
 crowd.setLimit(cfg.limit);
 camDir.pickGuest = () => crowd.pickForCamera();
 camDir.crowdRef = crowd;
+crowd.extraObstacles = () => [groom.group.position, bride.group.position];
 camDir.hallRef = hall;
 camDir.obstacles = () => {
   const out = [];
@@ -178,7 +180,7 @@ function placeCoupleLabels() {
     h.headTop(_tv); _tv.y += 0.15;
     const d = _tv.distanceTo(camera.position);
     _tv.project(camera);
-    return { x: (_tv.x * 0.5 + 0.5) * viewW, y: (-_tv.y * 0.5 + 0.5) * viewH, hide: _tv.z > 1, s: Math.max(0.45, Math.min(1.35, 14 / d)) };
+    return { x: (_tv.x * 0.5 + 0.5) * viewW, y: (-_tv.y * 0.5 + 0.5) * viewH, hide: _tv.z > 1, s: Math.max(0.75, Math.min(1.5, 16 / d)) };  // noivos: foto sempre grande
   });
   // se as plaquinhas dos noivos se encostarem (no beijo), afasta uma da outra
   const minGap = 95 * Math.max(pos[0].s, pos[1].s) * (viewH / 960);
@@ -382,7 +384,7 @@ if (SHOT) {
 } else {
   renderer.setAnimationLoop(frame);
 }
-window.__game = game; window.__scene = scene; window.__render = () => composer.render(); window.__cam = camDir; window.__wed = { groom, bride };
+window.__dbg = { createChar, socketsFor, THREE }; window.__game = game; window.__scene = scene; window.__render = () => composer.render(); window.__cam = camDir; window.__wed = { groom, bride };
 window.__tick = tick;
 
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

@@ -25,12 +25,12 @@ const DEFS = {
   violao: {
     url: urlViolao, size: 1.12, socket: 'belly', body: 'guitar',
     pos: [-0.12, -0.02, 0.1], rot: [0, -0.3, 0.42],
-    hands: { L: [0.36, 0, -0.01], R: [-0.03, 0, 0.09] },
+    hands: { L: [0.36, 0, 0.0], R: [-0.03, 0, 0.12] },
   },
   guitarra: {
     url: urlGuitarra, size: 1.08, socket: 'belly', body: 'guitar',
     pos: [-0.1, -0.02, 0.1], rot: [0, -0.3, 0.42],
-    hands: { L: [0.42, 0, -0.01], R: [-0.02, 0, 0.08] },
+    hands: { L: [0.42, 0, 0.0], R: [-0.02, 0, 0.11] },
   },
   trompete: {
     url: urlTrumpet, size: 0.62, socket: 'mouth', body: 'idle',
@@ -51,6 +51,8 @@ const DEFS = {
 export const INSTRUMENT_KINDS = Object.keys(DEFS);
 
 const T = { models: {}, sockets: {} };
+// altura da boca de cada modelo (medida olhando o rosto de cada um)
+const MOUTH_DY = { zumbi_azul: -0.13, noiva: -0.13, noivo_zumbi: -0.17, palhaco: -0.17, goblin: -0.14, tung_tung: -0.18 };
 
 export async function loadInstruments() {
   const L = new GLTFLoader();
@@ -65,7 +67,7 @@ export async function loadInstruments() {
 //  "tomadas" medidas no personagem parado (pose original):
 //  boca = frente do rosto; barriga = frente do corpo na altura do Spine
 // ------------------------------------------------------------------
-function socketsFor(key) {
+export function socketsFor(key) {
   if (T.sockets[key]) return T.sockets[key];
   const c = createChar(key);
   c.root.updateMatrixWorld(true);
@@ -87,7 +89,7 @@ function socketsFor(key) {
     const local = bone.matrixWorld.clone().invert().multiply(want);
     out[name] = { bone: boneName, local };
   };
-  const my = H.y + hs * 0.28;
+  const my = H.y + hs * 0.28 + (MOUTH_DY[key] || 0);
   make('mouth', B.Head ? 'Head' : 'Neck', new THREE.Vector3(H.x, my, front(H.x, my, H.z, H.z + hs * 0.45)));
   const sb = B.Spine || B.Hips, S = wp(sb);
   const by = S.y + 0.05;
@@ -180,6 +182,15 @@ export class InstrumentPlayer {
       // cotovelo para baixo, um pouco para fora e para trás
       this.pole.set(0, -1, 0).addScaledVector(left, s === 'L' ? 0.55 : -0.55).addScaledVector(fwd, -0.35);
       solveArm(up, lo, hd, this.tgt, this.pole);
+      // a palma (base dos dedos) é que encosta no instrumento, não o pulso:
+      // mede a distância pulso -> dedos e resolve de novo com o alvo recuado
+      const knuckle = B[side + 'HandMiddle1'] || B[side + 'HandIndex1'];
+      if (knuckle) {
+        hd.getWorldPosition(_a); knuckle.getWorldPosition(_b);
+        _c.subVectors(_b, _a).multiplyScalar(0.8);
+        this.tgt.sub(_c);
+        solveArm(up, lo, hd, this.tgt, this.pole);
+      }
     }
   }
   dispose() { this.socket.parent && this.socket.parent.remove(this.socket); }

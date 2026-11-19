@@ -22,6 +22,39 @@ export const ENTRY = new THREE.Vector3(-9.6, 0, 3.2);               // pé da es
 export const STAIR_TOP = new THREE.Vector3(-15, 3.2, 3.2);          // de onde os convidados aparecem
 export const FLOOR_R = 10.5;   // compatibilidade
 export const ALTAR_Z = STAGE.z;
+const TRUSS_Z = 6.5;   // treliça da frente (as pernas ficam fora do caminho da entrada)
+
+/** tudo em que os personagens não podem encostar (no chão): segmentos [x1,z1,x2,z2,raio].
+ *  stage = parte do palco (quem sobe pelos degraus ignora) */
+export function colliders() {
+  const L = [];
+  const add = (x1, z1, x2, z2, r, stage = false) => L.push({ x1, z1, x2, z2, r, stage });
+  // pernas das treliças, candelabros, placas
+  for (const sx of [1, -1]) {
+    add(sx * 8, -3.3, sx * 8, -3.3, 0.35); add(sx * 8, TRUSS_Z + 0.2, sx * 8, TRUSS_Z + 0.2, 0.35);
+    add(sx * 7.2, -1.6, sx * 7.2, -1.6, 0.45);
+    add(sx * 9.0 - sx * 1.6, -3.9, sx * 9.0 + sx * 1.4, -2.4, 0.25);
+  }
+  // grade de ossos (com a abertura da entrada do lado esquerdo)
+  const fd = FLOOR.z1 - FLOOR.z0;
+  for (const sx of [1, -1]) {
+    const x = sx * (FLOOR.x1 + 1.1);
+    const zs = []; for (let i = 0; i < 5; i++) zs.push(FLOOR.z0 + 0.8 + i * ((fd - 1.6) / 4));
+    const side = sx < 0 ? zs.filter((z) => Math.abs(z - ENTRY.z) > 1.5) : zs;
+    for (let i = 0; i < side.length; i++) {
+      add(x, side[i], x, side[i], 0.3);
+      if (i < side.length - 1 && side[i + 1] - side[i] <= 3) add(x, side[i], x, side[i + 1], 0.25);
+    }
+  }
+  // palco: bordas (só se entra pelos degraus) e o que tem em cima dele
+  const fz = STAGE.z + STAGE.d / 2, bz = STAGE.z - STAGE.d / 2, hw = STAGE.w / 2;
+  add(-hw, fz, -2.4, fz, 0.15, true); add(2.4, fz, hw, fz, 0.15, true);
+  add(-2.4, fz, -2.4, fz + 1.4, 0.15, true); add(2.4, fz, 2.4, fz + 1.4, 0.15, true);
+  add(-2.4, fz + 1.4, 2.4, fz + 1.4, 0.15, true);   // degraus (só para quem vai subir)
+  add(-hw, fz, -hw, bz, 0.15, true); add(hw, fz, hw, bz, 0.15, true);
+  for (const sx of [1, -1]) { add(sx * 2.7, STAGE.z - 1.4, sx * 2.7, STAGE.z - 1.4, 0.32); add(sx * 3.6, bz + 0.4, sx * 3.6, bz + 0.4, 0.35); add(sx * 4.9, STAGE.z - 1.25, sx * 4.9, STAGE.z + 0.05, 0.85); }
+  return L;
+}
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 let seed = 11;
@@ -234,14 +267,14 @@ export function buildHall(scene, { quality = 'high' } = {}) {
   const trussMat = new THREE.MeshStandardMaterial({ color: 0x2a2a32, metalness: 0.8, roughness: 0.4 });
   const truss = (len) => { const parts = []; for (const [y, z] of [[0, 0], [0.4, 0], [0, 0.4], [0.4, 0.4]]) parts.push(new THREE.CylinderGeometry(0.035, 0.035, len, 6).rotateZ(Math.PI / 2).translate(0, y, z)); for (let i = 0; i < len / 0.5; i++) parts.push(new THREE.CylinderGeometry(0.02, 0.02, 0.57, 4).rotateX(Math.PI / 4).translate(-len / 2 + i * 0.5, 0.2, 0.2)); return merge(parts); };
   const tA = new THREE.Mesh(truss(16), trussMat); tA.position.set(0, 9.2, -3.5); hall.add(tA);
-  const tB = new THREE.Mesh(truss(16), trussMat); tB.position.set(0, 9.2, 3); hall.add(tB);
+  const tB = new THREE.Mesh(truss(16), trussMat); tB.position.set(0, 9.2, TRUSS_Z); hall.add(tB);
   const frontRig = [tB];   // escondido na vista aérea (não fica cruzando a tela)
-  for (const s of [1, -1]) for (const z of [-3.5, 3]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 9.2, 0.4), trussMat); leg.position.set(s * 8, 4.6, z + 0.2); hall.add(leg); if (z > 0) frontRig.push(leg); }
+  for (const s of [1, -1]) for (const z of [-3.5, TRUSS_Z]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 9.2, 0.4), trussMat); leg.position.set(s * 8, 4.6, z + 0.2); hall.add(leg); if (z > 0) frontRig.push(leg); }
   // globo
   const ballTex = canvasTex(256, 128, (g, w, h) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 32; x++) { const v = 120 + Math.random() * 135; g.fillStyle = `rgb(${v},${v * 0.9},${v})`; g.fillRect(x * 8, y * 8, 7, 7); } });
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.75, 32, 20), new THREE.MeshStandardMaterial({ map: ballTex, metalness: 1, roughness: 0.15, emissive: 0x6a2a9a, emissiveMap: ballTex, emissiveIntensity: 0.5 }));
-  ball.position.set(-4.2, 8.5, 3.2); hall.add(ball);
-  const ballWire = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.1), trussMat); ballWire.position.set(-4.2, 9.3, 3.2); hall.add(ballWire); frontRig.push(ball, ballWire);
+  ball.position.set(-4.2, 8.5, TRUSS_Z + 0.2); hall.add(ball);
+  const ballWire = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.1), trussMat); ballWire.position.set(-4.2, 9.3, TRUSS_Z + 0.2); hall.add(ballWire); frontRig.push(ball, ballWire);
   // pontinhos de luz do globo girando pelo cenário
   const dotsN = hi ? 90 : 45;
   const dots = new THREE.InstancedMesh(new THREE.CircleGeometry(0.09, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.6, 2.4), toneMapped: false, transparent: true, opacity: 0.8, depthWrite: false }), dotsN);
@@ -254,7 +287,7 @@ export function buildHall(scene, { quality = 'high' } = {}) {
       const d = dotDirs[i].clone().applyQuaternion(rot);
       // projeta no chão (y=0.02) ou numa "parede" distante
       const k = d.y < -0.15 ? (8.5 - 0.03) / -d.y : 14;
-      const p = new THREE.Vector3(-4.2, 8.5, 3.2).addScaledVector(d, k);
+      const p = new THREE.Vector3(-4.2, 8.5, TRUSS_Z + 0.2).addScaledVector(d, k);
       if (d.y < -0.15) { q.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); p.y = 0.03; } else q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d.clone().negate());
       dots.setMatrixAt(i, m.compose(p, q, d.y < -0.15 ? new THREE.Vector3(1, 1, 1) : new THREE.Vector3(0, 0, 0)));  // só os pontinhos que caem no chão
     }
@@ -266,7 +299,7 @@ export function buildHall(scene, { quality = 'high' } = {}) {
     vertexShader: 'varying float vY; varying float vD; void main(){ vY = uv.y; vec4 mv = modelViewMatrix*vec4(position,1.); vD = -mv.z; gl_Position = projectionMatrix*mv; }',
     fragmentShader: 'uniform vec3 uColor; uniform float uI; varying float vY; varying float vD; void main(){ gl_FragColor = vec4(uColor * uI * pow(vY, 1.5) * smoothstep(3.0, 11.0, vD), 1.0); }' });
   const spots = [];
-  const spotDefs = [[-6, -3.5, 0xb44dff], [-2.5, -3.5, 0x7dff3a], [2.5, -3.5, 0xb44dff], [6, -3.5, 0x7dff3a], [-5, 3, 0xff4de0], [5, 3, 0xb44dff]];
+  const spotDefs = [[-6, -3.5, 0xb44dff], [-2.5, -3.5, 0x7dff3a], [2.5, -3.5, 0xb44dff], [6, -3.5, 0x7dff3a], [-5, TRUSS_Z, 0xff4de0], [5, TRUSS_Z, 0xb44dff]];
   spotDefs.forEach(([x, z, col], i) => {
     const can = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.55, 12), trussMat); can.position.set(x, 8.85, z + 0.2); hall.add(can);
     const lens = new THREE.Mesh(new THREE.CircleGeometry(0.22, 12), neon(col, 3)); lens.position.set(x, 8.57, z + 0.2); lens.rotation.x = Math.PI / 2; hall.add(lens);

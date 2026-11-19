@@ -12,14 +12,17 @@ import { createChar, GUEST_CHARS, DANCES, HEIGHT } from '../chars/models.js';
 import { chitinTex, chitinBump, wingTex } from '../mantis/materials.js';
 import { accessoryDefs, HEAD_ACCS, FACE_ACCS, NECK_ACCS } from '../mantis/accessories.js';
 import { InstrumentPlayer } from '../chars/instruments.js';
-import { ENTRY, STAIR_TOP, FLOOR, STAGE } from '../scene/club.js';
+import { ENTRY, STAIR_TOP, FLOOR, STAGE, colliders } from '../scene/club.js';
+const COLL = colliders();
+const BODY_R = 0.33;   // "raio do corpo": ninguém chega mais perto que 2x isso de outro personagem
 
 export const CAP = 240;
 // palco da banda (atrás dos noivos, dos dois lados do tapete)
 // banda: em cima do palco, dos dois lados dos noivos
 const BAND = [[-3.3, -5.9], [-2.1, -7.2], [2.1, -7.2], [3.3, -5.9]];
 const ENTRY_DANCES = ['chicken', 'runningman', 'charleston', 'twist'];  // entrada rápida e engraçada
-const SLOT_GAP = 1.3;
+const SLOT_GAP = 1.45;   // espaço entre lugares: sobra corredor entre as fileiras
+const LANE_X = -6.25;    // corredor junto da grade da esquerda (por onde quem chega anda)
 // um instrumento por lugar da banda (no trompete, às vezes vem trombone)
 const INSTRUMENTS = ['violao', 'trompete', 'sax', 'guitarra'];
 const AISLE = 1.35;
@@ -203,10 +206,10 @@ export class Crowd {
       const half = wide ? 9.5 : (FLOOR.x1 - 0.7);
       const off = (row % 2) * SLOT_GAP * 0.5;
       const xs = [];
-      for (let x = -half + off; x <= half + 1e-6; x += SLOT_GAP) xs.push(x);
+      for (let k = -12; k <= 12; k++) { const x = k * SLOT_GAP + off; if (Math.abs(x) <= half + 1e-6) xs.push(x); }
       xs.sort((p, q) => Math.abs(p) - Math.abs(q));
       for (const x of xs) {
-        if (row === 0 && Math.abs(x) < 0.7) continue;  // lugar de destaque
+        if (Math.abs(x) < 0.8 || Math.abs(x - LANE_X) < 0.95) continue;  // corredores: do meio (até o palco) e o da esquerda (entrada)
         slots.push({ pos: new THREE.Vector3(x, 0, z), row, guest: null });
       }
     }
@@ -243,8 +246,10 @@ export class Crowd {
     this.list.push(g);
     this._planArrival(g);
     if (!silent) {
-      this.fx.poof(STAIR_TOP.clone().setY(STAIR_TOP.y + 0.6), [0.9, 0.5, 1]);
       this.sfx('arrive');
+      const clock = this.clock || 0;   // vários juntos: entram em fila pela escada
+      const startAt = Math.max(clock + 0.4, (this._lastEntry || 0) + 1.6);
+      this._lastEntry = startAt; g.arriveDelay = startAt - clock;
       this._queueEntrance(g);
     }
     this.onCount(this.list.length);
@@ -254,7 +259,7 @@ export class Crowd {
   /** chega sem caminhar (usado para encher a festa rápido nos testes) */
   addInstant(info) {
     const g = this.add(info, { silent: true });
-    if (g && g.slot) { g.pos.copy(g.slot.pos); g.path = []; g.state = 'placed'; g.yaw = g.yawTarget = this._faceCenter(g); g.entering = false; g.anim.play(pick(DANCES)); }
+    if (g && g.slot) { g.pos.copy(g.slot.pos); g.path = []; g.state = 'placed'; g.yaw = g.yawTarget = this._faceCenter(g); g.entering = false; g.waiting = false; g.arriveDelay = 0; g.char.root.visible = true; g.anim.play(pick(DANCES)); }
     return g;
   }
 
@@ -263,20 +268,34 @@ export class Crowd {
     const s = g.slot;
     g.path = [];
     g.path.push(new THREE.Vector3(ENTRY.x, 0, ENTRY.z));
-    g.path.push(new THREE.Vector3(FLOOR.x0 + 0.4, 0, ENTRY.z));
-    if (s && s.pos.y > 0.1) g.path.push(...this._stagePath(s.pos));
-    else if (s) g.path.push(s.pos.clone());
+    g.path.push(new THREE.Vector3(LANE_X, 0, ENTRY.z));
+    if (s && s.pos.y > 0.1) g.path.push(...this._lanePath(new THREE.Vector3(0, 0, FLOOR.z0 + 0.2), new THREE.Vector3(LANE_X, 0, ENTRY.z)).slice(0, -1), ...this._stagePath(s.pos));
+    else if (s) g.path.push(...this._lanePath(s.pos, new THREE.Vector3(LANE_X, 0, ENTRY.z)));
     g.state = 'arriving';
     g.pos.copy(STAIR_TOP);
     g.yaw = Math.PI / 2;
     g.entryDance = pick(ENTRY_DANCES);
-    g.anim.play('hello', { dur: 1.2, next: g.entryDance });
-    g.arriveDelay = 1.0;
+    // um de cada vez pela escada (se chegarem vários juntos, entram em fila)
+    g.arriveDelay = 0.4;
+    g.waiting = true; g.char.root.visible = false;
     g.entering = true;
+  }
+  /** pela grade da esquerda até a fileira certa, depois pelo meio das fileiras até o lugar (sem atravessar ninguém) */
+  _lanePath(p, from) {
+    const mid = p.z + SLOT_GAP / 2;
+    if (Math.abs(p.x) < 0.8) return [new THREE.Vector3(LANE_X, 0, from.z), new THREE.Vector3(LANE_X, 0, mid), new THREE.Vector3(p.x, 0, mid), p.clone()];
+    return [new THREE.Vector3(LANE_X, 0, mid), new THREE.Vector3(p.x, 0, mid), p.clone()];
+  }
+  /** do lugar na pista até o corredor do meio e dali até os degraus */
+  _toAisle(from) {
+    const mid = from.z + SLOT_GAP / 2;
+    return [new THREE.Vector3(from.x, 0, mid), new THREE.Vector3(0, 0, mid), new THREE.Vector3(0, 0, FLOOR.z0 + 0.3)];
   }
   /** caminho até um lugar em cima do palco (sobe pelos degraus do meio) */
   _stagePath(p) {
-    return [new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.8), new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.2), p.clone()];
+    const sx = Math.sign(p.x) || 1;
+    return [new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.9), new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.3),
+      new THREE.Vector3(sx * 2.7, STAGE.y, STAGE.z + STAGE.d / 2 - 0.5), p.clone()];   // contorna os noivos pela frente
   }
   /** fila de close: cada um que entra ganha o seu momento na câmera */
   _queueEntrance(g) {
@@ -478,7 +497,7 @@ export class Crowd {
       g.setAcc('face', null);
       const forced = new URLSearchParams(location.search).get('inst'); // só para testes
       g.instKind = forced || (slot.inst === 'trompete' && Math.random() < 0.5 ? 'trombone' : slot.inst);
-      g.path = g.state === 'arriving' && g.entering ? [new THREE.Vector3(ENTRY.x, 0, ENTRY.z), ...this._stagePath(slot.pos)] : this._stagePath(slot.pos); g.state = 'arriving'; g.arriveDelay = g.arriveDelay > 0 ? g.arriveDelay : 0.3;
+      g.path = g.state === 'arriving' && g.entering ? [new THREE.Vector3(ENTRY.x, 0, ENTRY.z), new THREE.Vector3(LANE_X, 0, ENTRY.z), new THREE.Vector3(LANE_X, 0, FLOOR.z0 + 0.3), new THREE.Vector3(0, 0, FLOOR.z0 + 0.3), ...this._stagePath(slot.pos)] : [...(g.pos.y < 0.3 ? this._toAisle(g.pos) : []), ...this._stagePath(slot.pos)]; g.state = 'arriving'; g.arriveDelay = g.arriveDelay > 0 ? g.arriveDelay : 0.3;
       this.updateLabel(g);
     }
     slot.since = performance.now();
@@ -494,7 +513,7 @@ export class Crowd {
     g.band = null; g.role = 'guest';
     if (g.player) { g.player.dispose(); g.player = null; }
     const s = this.freeSlot();
-    g.slot = s; if (s) { s.guest = g; g.path = [new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.2), new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.8), s.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0; }
+    g.slot = s; if (s) { s.guest = g; const sx = Math.sign(g.pos.x) || 1; g.path = [new THREE.Vector3(sx * 2.7, STAGE.y, STAGE.z + STAGE.d / 2 - 0.5), new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.3), new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.9), new THREE.Vector3(0, 0, s.pos.z + SLOT_GAP / 2), new THREE.Vector3(s.pos.x, 0, s.pos.z + SLOT_GAP / 2), s.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0; }
     this.updateLabel(g);
   }
 
@@ -550,9 +569,11 @@ export class Crowd {
 
     // fila de closes das entradas
     this.entranceBusy -= dt;
-    if (this.entranceBusy <= 0 && this.entranceQ.length) {
+    this.clock = (this.clock || 0) + dt;
+    while (this.entranceQ.length && !(this.entranceQ[0].alive && this.entranceQ[0].state === 'arriving')) this.entranceQ.shift();
+    if (this.entranceBusy <= 0 && this.entranceQ.length && !this.entranceQ[0].waiting) {
       const g = this.entranceQ.shift();
-      if (g.alive && g.state === 'arriving') { this.onFocus(g, 6.5, 'entrance'); this.entranceBusy = 6.5; }
+      this.onFocus(g, 6.5, 'entrance'); this.entranceBusy = 6.5;
     }
     this.R.begin();
     this._frame = (this._frame || 0) + 1;
@@ -608,6 +629,11 @@ export class Crowd {
     // ---- andando até o lugar ----
     if (g.state === 'arriving') {
       if (g.arriveDelay > 0) { g.arriveDelay -= dt; g.speed = 0; return; }
+      if (g.waiting) { // aparece no portal, acena e desce dançando
+        g.waiting = false; g.char.root.visible = true;
+        this.fx.poof(g.pos.clone().setY(g.pos.y + 0.6), [0.9, 0.5, 1]);
+        g.anim.play('hello', { dur: 1.0, next: g.entryDance }); g.arriveDelay = 0.9; return;
+      }
       const tgt = g.path[0];
       if (!tgt) { g.state = 'placed'; g.speed = 0; return; }
       const dx = tgt.x - g.pos.x, dz = tgt.z - g.pos.z, d = Math.hypot(dx, dz);
@@ -615,7 +641,7 @@ export class Crowd {
       const moveAnim = g.entering ? g.entryDance : 'walk';
       if (g.anim.name !== moveAnim && g.anim.name !== 'hello') g.anim.play(moveAnim, { blend: 0.25 });
       const sp = g.entering ? 1.9 : 2.3;
-      if (d < 0.12) {
+      if (d < (g.path.length > 1 ? 0.35 : 0.12)) {
         g.pos.y = tgt.y;
         g.path.shift();
         if (!g.path.length) {
@@ -629,7 +655,13 @@ export class Crowd {
         }
       } else {
         const step = Math.min(d, sp * dt);
+        const ox = g.pos.x, oz = g.pos.z;
         g.pos.x += (dx / d) * step; g.pos.z += (dz / d) * step;
+        this._collide(g, dx / d, dz / d, g.path.length === 1 && d < 0.6);
+        // empacou (alguém parado bem no caminho)? por um instante passa "de lado" mais forte
+        g._prog = (g._prog || 0) + Math.hypot(g.pos.x - ox, g.pos.z - oz);
+        g._progT = (g._progT || 0) + dt;
+        if (g._progT > 1.2) { g._side = g._prog < 0.25 ? (g._side || 1) * -1 * 1.6 : 0; g._prog = 0; g._progT = 0; }
         // altura: escada da entrada segue os degraus; subir no palco é suave
         if (g.pos.x < ENTRY.x - 0.05 && Math.abs(g.pos.z - ENTRY.z) < 1.4) {
           const u = Math.min(1, Math.max(0, (g.pos.x - STAIR_TOP.x) / (ENTRY.x - STAIR_TOP.x)));
@@ -661,6 +693,38 @@ export class Crowd {
       const next = this.mode || (r < 0.06 ? 'clap' : pick(DANCES));
       g.anim.play(next, { blend: 0.5, dur: next === 'clap' ? 3 : Infinity, next: () => pick(DANCES) });
     }
+  }
+
+  /** empurra quem está andando para fora dos objetos do cenário e dos outros personagens */
+  _collide(g, fx, fz, nearEnd) {
+    const onStagePath = g.band || g.pos.y > 0.3 || (g.path[0] && g.path[0].y > 0.3) || g.path.some((p) => p.y > 0.3);
+    const minD = BODY_R * 2;
+    // outros personagens (e os noivos)
+    const others = this.extraObstacles ? this.extraObstacles() : [];
+    for (let pass = 0; pass < 3; pass++) {
+      for (const o of this.list) {
+        if (o === g || Math.abs(o.pos.y - g.pos.y) > 0.6) continue;
+        this._pushFrom(g, o.pos.x, o.pos.z, minD, fx, fz);
+      }
+      for (const p of others) if (Math.abs(p.y - g.pos.y) < 0.6) this._pushFrom(g, p.x, p.z, minD + 0.12, fx, fz);
+      // cenário (segmentos)
+      for (const c of COLL) {
+        if (c.stage && onStagePath) continue;
+        if (g.pos.y > 0.3 && !c.stage && g.pos.y < STAGE.y - 0.2) continue; // na escada da entrada
+        const ex = c.x2 - c.x1, ez = c.z2 - c.z1, L2 = ex * ex + ez * ez;
+        let t = L2 > 0 ? ((g.pos.x - c.x1) * ex + (g.pos.z - c.z1) * ez) / L2 : 0; t = Math.max(0, Math.min(1, t));
+        this._pushFrom(g, c.x1 + ex * t, c.z1 + ez * t, c.r + BODY_R, fx, fz);
+      }
+    }
+  }
+  _pushFrom(g, px, pz, minD, fx, fz) {
+    let ax = g.pos.x - px, az = g.pos.z - pz, dd = Math.hypot(ax, az);
+    if (dd >= minD) return;
+    if (dd < 1e-4) { ax = -fz; az = fx; dd = 1; }
+    ax /= dd; az /= dd;
+    // se o empurrão é bem contra a direção do passo, desvia para um lado (contorna em vez de travar)
+    if (ax * fx + az * fz < -0.7) { const sd = (g._side || (g.seed > 0.5 ? 1 : -1)); ax += -fz * 0.6 * sd; az += fx * 0.6 * sd; const n = Math.hypot(ax, az); ax /= n; az /= n; }
+    g.pos.x = px + ax * minD; g.pos.z = pz + az * minD;
   }
 
   _rocket(g, dt) {
@@ -721,7 +785,7 @@ export class Crowd {
       g.headPos(v);
       const dist = v.distanceTo(camera.position);
       v.project(camera);
-      const hide = v.z > 1 || v.x < -1.2 || v.x > 1.2 || v.y < -1.2 || v.y > 1.3;
+      const hide = g.waiting || v.z > 1 || v.x < -1.2 || v.x > 1.2 || v.y < -1.2 || v.y > 1.3;
       if (hide !== g._hid) { g._hid = hide; g.label.style.display = hide ? 'none' : ''; }
       if (hide) continue;
       const x = (v.x * 0.5 + 0.5) * W, y = (-v.y * 0.5 + 0.5) * H;

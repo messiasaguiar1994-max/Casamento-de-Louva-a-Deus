@@ -34,11 +34,11 @@ export class Groom3D extends Hero3D {
 
 export class Bride3D extends Hero3D {
   constructor() {
-    super('zumbi_azul');
-    const tulle = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, transparent: true, opacity: 0.4, side: THREE.DoubleSide, depthWrite: false });
+    super('noiva');  // mesma zumbi azul, agora com vestido de noiva (corpete + saia de renda)
+    const tulle = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, transparent: true, opacity: 0.32, side: THREE.DoubleSide, depthWrite: false });
     // véu: cone aberto caindo pelas costas
-    const veil = new THREE.Mesh(new THREE.ConeGeometry(0.32, 0.95, 28, 1, true, Math.PI * 0.45, Math.PI * 1.1), tulle);
-    veil.position.set(0, -0.42, -0.16); veil.rotation.y = Math.PI;
+    const veil = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.75, 28, 1, true, Math.PI * 0.62, Math.PI * 0.76), tulle);  // só nas costas
+    veil.position.set(0, -0.36, -0.12);
     const crown = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.025, 8, 24), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3 }));
     crown.rotation.x = Math.PI / 2;
     const flowers = new THREE.Group(); flowers.add(veil, crown);
