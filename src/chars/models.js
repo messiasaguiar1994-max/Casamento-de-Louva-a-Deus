@@ -159,13 +159,18 @@ export function createChar(key, { seed = Math.random(), shadow = false } = {}) {
   const anim = new CharAnim(mixer, clipsFor(key), seed);
   anim.play('idle');
   const head = bones.Head || bones.Neck;
-  const _q = new THREE.Vector3();
+  const _q = new THREE.Vector3(), _t = new THREE.Vector3();
   return {
     key, root, model, bones, mixer, anim,
     /** ponto em cima da cabeça (mundo) */
     headTop(v = new THREE.Vector3()) {
-      if (bones.HeadTop_End) { bones.HeadTop_End.getWorldPosition(v); v.y += 0.08 * root.scale.y; return v; }
-      head.getWorldPosition(v); v.y += 0.35 * root.scale.y; return v;
+      head.getWorldPosition(v);
+      if (bones.HeadTop_End) {
+        bones.HeadTop_End.getWorldPosition(_t);
+        // alguns modelos têm o osso do topo da cabeça fora do lugar (ex.: palhaço): aí usa a cabeça + um pouco
+        if (_t.y > v.y + 0.12 * root.scale.y) { v.copy(_t); v.y += 0.08 * root.scale.y; return v; }
+      }
+      v.y += 0.3 * root.scale.y; return v;
     },
     headPos(v = new THREE.Vector3()) { return head.getWorldPosition(v); },
     update(dt) { anim.update(dt); },

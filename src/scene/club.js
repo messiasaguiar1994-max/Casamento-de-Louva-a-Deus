@@ -234,17 +234,18 @@ export function buildHall(scene, { quality = 'high' } = {}) {
   const truss = (len) => { const parts = []; for (const [y, z] of [[0, 0], [0.4, 0], [0, 0.4], [0.4, 0.4]]) parts.push(new THREE.CylinderGeometry(0.035, 0.035, len, 6).rotateZ(Math.PI / 2).translate(0, y, z)); for (let i = 0; i < len / 0.5; i++) parts.push(new THREE.CylinderGeometry(0.02, 0.02, 0.57, 4).rotateX(Math.PI / 4).translate(-len / 2 + i * 0.5, 0.2, 0.2)); return merge(parts); };
   const tA = new THREE.Mesh(truss(16), trussMat); tA.position.set(0, 9.2, -3.5); hall.add(tA);
   const tB = new THREE.Mesh(truss(16), trussMat); tB.position.set(0, 9.2, 3); hall.add(tB);
-  for (const s of [1, -1]) for (const z of [-3.5, 3]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 9.2, 0.4), trussMat); leg.position.set(s * 8, 4.6, z + 0.2); hall.add(leg); }
+  const frontRig = [tB];   // escondido na vista aérea (não fica cruzando a tela)
+  for (const s of [1, -1]) for (const z of [-3.5, 3]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.4, 9.2, 0.4), trussMat); leg.position.set(s * 8, 4.6, z + 0.2); hall.add(leg); if (z > 0) frontRig.push(leg); }
   // globo
   const ballTex = canvasTex(256, 128, (g, w, h) => { for (let y = 0; y < 16; y++) for (let x = 0; x < 32; x++) { const v = 120 + Math.random() * 135; g.fillStyle = `rgb(${v},${v * 0.9},${v})`; g.fillRect(x * 8, y * 8, 7, 7); } });
   const ball = new THREE.Mesh(new THREE.SphereGeometry(0.75, 32, 20), new THREE.MeshStandardMaterial({ map: ballTex, metalness: 1, roughness: 0.15, emissive: 0x6a2a9a, emissiveMap: ballTex, emissiveIntensity: 0.5 }));
   ball.position.set(-4.2, 8.5, 3.2); hall.add(ball);
-  const ballWire = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.1), trussMat); ballWire.position.set(-4.2, 9.3, 3.2); hall.add(ballWire);
+  const ballWire = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.1), trussMat); ballWire.position.set(-4.2, 9.3, 3.2); hall.add(ballWire); frontRig.push(ball, ballWire);
   // pontinhos de luz do globo girando pelo cenário
   const dotsN = hi ? 90 : 45;
   const dots = new THREE.InstancedMesh(new THREE.CircleGeometry(0.09, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 1.6, 2.4), toneMapped: false, transparent: true, opacity: 0.8, depthWrite: false }), dotsN);
-  const dotDirs = []; for (let i = 0; i < dotsN; i++) dotDirs.push(new THREE.Vector3(srnd(-1, 1), srnd(-1, 0.1), srnd(-1, 1)).normalize());
-  hall.add(dots);
+  const dotDirs = []; for (let i = 0; i < dotsN; i++) dotDirs.push(new THREE.Vector3(srnd(-1, 1), srnd(-1.6, -0.3), srnd(-1, 1)).normalize());
+  hall.add(dots); frontRig.push(dots);
   updaters.push((t) => {
     ball.rotation.y = t * 0.6;
     const m = new THREE.Matrix4(), q = new THREE.Quaternion(), rot = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), t * 0.6);
@@ -254,25 +255,26 @@ export function buildHall(scene, { quality = 'high' } = {}) {
       const k = d.y < -0.15 ? (8.5 - 0.03) / -d.y : 14;
       const p = new THREE.Vector3(-4.2, 8.5, 3.2).addScaledVector(d, k);
       if (d.y < -0.15) { q.setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0)); p.y = 0.03; } else q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), d.clone().negate());
-      dots.setMatrixAt(i, m.compose(p, q, new THREE.Vector3(1, 1, 1)));
+      dots.setMatrixAt(i, m.compose(p, q, d.y < -0.15 ? new THREE.Vector3(1, 1, 1) : new THREE.Vector3(0, 0, 0)));  // só os pontinhos que caem no chão
     }
     dots.instanceMatrix.needsUpdate = true;
   });
   // holofotes (latas na treliça) com feixes coloridos
   const beamMat = (col) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
     uniforms: { uColor: { value: new THREE.Color(col) }, uI: { value: 0.3 } },
-    vertexShader: 'varying float vY; void main(){ vY = uv.y; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-    fragmentShader: 'uniform vec3 uColor; uniform float uI; varying float vY; void main(){ gl_FragColor = vec4(uColor * uI * pow(vY, 1.5), 1.0); }' });
+    vertexShader: 'varying float vY; varying float vD; void main(){ vY = uv.y; vec4 mv = modelViewMatrix*vec4(position,1.); vD = -mv.z; gl_Position = projectionMatrix*mv; }',
+    fragmentShader: 'uniform vec3 uColor; uniform float uI; varying float vY; varying float vD; void main(){ gl_FragColor = vec4(uColor * uI * pow(vY, 1.5) * smoothstep(3.0, 11.0, vD), 1.0); }' });
   const spots = [];
   const spotDefs = [[-6, -3.5, 0xb44dff], [-2.5, -3.5, 0x7dff3a], [2.5, -3.5, 0xb44dff], [6, -3.5, 0x7dff3a], [-5, 3, 0xff4de0], [5, 3, 0xb44dff]];
   spotDefs.forEach(([x, z, col], i) => {
     const can = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.55, 12), trussMat); can.position.set(x, 8.85, z + 0.2); hall.add(can);
     const lens = new THREE.Mesh(new THREE.CircleGeometry(0.22, 12), neon(col, 3)); lens.position.set(x, 8.57, z + 0.2); lens.rotation.x = Math.PI / 2; hall.add(lens);
-    const sl = (i < 4 || hi) ? new THREE.SpotLight(col, 90, 30, 0.26, 0.5, 1.6) : null;
+    const sl = (i < 4 || hi) ? new THREE.SpotLight(col, 38, 30, 0.26, 0.5, 1.6) : null;
     if (sl) { sl.position.set(x, 8.6, z + 0.2); scene.add(sl, sl.target); }
     const cg = new THREE.ConeGeometry(1.9, 10, 20, 1, true); cg.translate(0, -5, 0);
     const bm = new THREE.Mesh(cg, beamMat(col)); bm.position.set(x, 8.6, z + 0.2); scene.add(bm);
     spots.push({ sl, bm, can, i, x, z });
+    if (z > 0) frontRig.push(can, lens, bm);
   });
   const down = new THREE.Vector3(0, -1, 0), tv = new THREE.Vector3();
   updaters.push((t, beat) => {
@@ -282,14 +284,14 @@ export function buildHall(scene, { quality = 'high' } = {}) {
       if (s.sl) s.sl.target.position.copy(target);
       tv.copy(target).sub(s.bm.position).normalize();
       s.bm.quaternion.setFromUnitVectors(down, tv); s.can.quaternion.copy(s.bm.quaternion);
-      s.bm.material.uniforms.uI.value = 0.12 + Math.pow(1 - (beat % 1), 3) * 0.12;
+      s.bm.material.uniforms.uI.value = 0.09 + Math.pow(1 - (beat % 1), 3) * 0.08;
     }
   });
 
   // ---------------- pista de LED quadrada com coração partido ----------------
   const fw = FLOOR.x1 - FLOOR.x0, fd = FLOOR.z1 - FLOOR.z0;
   const fu = { uTime: { value: 0 }, uBeat: { value: 0 }, uPower: { value: 1 } };
-  const floorMat = new THREE.MeshPhysicalMaterial({ color: 0x120818, roughness: 0.2, metalness: 0.3, clearcoat: 1, clearcoatRoughness: 0.05 });
+  const floorMat = new THREE.MeshPhysicalMaterial({ color: 0x120818, roughness: 0.55, metalness: 0.1, clearcoat: 0.5, clearcoatRoughness: 0.4 })  // sem brilho estourado nos closes;
   floorMat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, fu);
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;').replace('#include <project_vertex>', '#include <project_vertex>\nvWP = (modelMatrix * vec4(transformed,1.0)).xyz;');
@@ -343,7 +345,7 @@ export function buildHall(scene, { quality = 'high' } = {}) {
     }
     hall.add(g);
   }
-  candelabra(-3.65, STAGE.y, STAGE.z + STAGE.d / 2 - 0.35, 1.0); candelabra(3.65, STAGE.y, STAGE.z + STAGE.d / 2 - 0.35, 1.0);
+  candelabra(-3.6, STAGE.y, STAGE.z - STAGE.d / 2 + 0.4, 1.0); candelabra(3.6, STAGE.y, STAGE.z - STAGE.d / 2 + 0.4, 1.0);  // cantos de trás do palco (não tampam a banda)
   candelabra(-7.2, 0, -1.6, 1.3); candelabra(7.2, 0, -1.6, 1.3);
   const candleLight = new THREE.PointLight(0xffb060, 18, 14, 2); candleLight.position.set(0, STAGE.y + 2.5, STAGE.z + 1.5); scene.add(candleLight);
   updaters.push((t) => { flames.forEach((f, i) => { f.scale.set(1 + Math.sin(t * 17 + i) * 0.12, 1.8 + Math.sin(t * 23 + i * 2) * 0.3, 1); }); candleLight.intensity = 16 + Math.sin(t * 13) * 2; });
@@ -494,5 +496,5 @@ export function buildHall(scene, { quality = 'high' } = {}) {
   scene.fog = new THREE.Fog(0x1a0828, 28, 75);
   scene.background = new THREE.Color(0x0c0414);
 
-  return { group: hall, keyLight: key, setDancePower(v) { fu.uPower.value = v; }, update(t, beat) { for (const u of updaters) u(t, beat); } };
+  return { group: hall, keyLight: key, setAerial(v) { for (const o of frontRig) o.visible = !v; }, setDancePower(v) { fu.uPower.value = v; }, update(t, beat) { for (const u of updaters) u(t, beat); } };
 }

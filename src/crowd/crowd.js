@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { createChar, GUEST_CHARS, DANCES, HEIGHT } from '../chars/models.js';
 import { chitinTex, chitinBump, wingTex } from '../mantis/materials.js';
 import { accessoryDefs, HEAD_ACCS, FACE_ACCS, NECK_ACCS } from '../mantis/accessories.js';
+import { InstrumentPlayer } from '../chars/instruments.js';
 import { ENTRY, STAIR_TOP, FLOOR, STAGE } from '../scene/club.js';
 
 export const CAP = 240;
@@ -19,7 +20,8 @@ export const CAP = 240;
 const BAND = [[-3.3, -5.9], [-2.1, -7.2], [2.1, -7.2], [3.3, -5.9]];
 const ENTRY_DANCES = ['chicken', 'runningman', 'charleston', 'twist'];  // entrada rápida e engraçada
 const SLOT_GAP = 1.3;
-const INSTRUMENTS = ['violao', 'violao', 'violao', 'violao']; // todos tocam violão (animação do Mixamo) // capacidade máxima de personagens
+// um instrumento por lugar da banda (no trompete, às vezes vem trombone)
+const INSTRUMENTS = ['violao', 'trompete', 'sax', 'guitarra'];
 const AISLE = 1.35;
 const RING0 = 4.0, RING_GAP = 1.75, SPACING = 1.55;
 
@@ -288,6 +290,7 @@ export class Crowd {
     if (poof) this.fx.poof(g.pos, [1, 1, 1]);
     if (g.slot) g.slot.guest = null;
     if (g.band) g.band.guest = null;
+    if (g.player) { g.player.dispose(); g.player = null; }
     g.label.remove();
     this.scene.remove(g.char.root);
     g.alive = false;
@@ -473,7 +476,8 @@ export class Crowd {
       slot.guest = g; g.slot = slot; g.band = slot;
       g.role = 'musician';
       g.setAcc('face', null);
-      g.setAcc('instr', slot.inst, 0xffffff);
+      const forced = new URLSearchParams(location.search).get('inst'); // só para testes
+      g.instKind = forced || (slot.inst === 'trompete' && Math.random() < 0.5 ? 'trombone' : slot.inst);
       g.path = g.state === 'arriving' && g.entering ? [new THREE.Vector3(ENTRY.x, 0, ENTRY.z), ...this._stagePath(slot.pos)] : this._stagePath(slot.pos); g.state = 'arriving'; g.arriveDelay = g.arriveDelay > 0 ? g.arriveDelay : 0.3;
       this.updateLabel(g);
     }
@@ -488,7 +492,7 @@ export class Crowd {
     const slot = g.band;
     if (slot) slot.guest = null;
     g.band = null; g.role = 'guest';
-    g.setAcc('instr', null);
+    if (g.player) { g.player.dispose(); g.player = null; }
     const s = this.freeSlot();
     g.slot = s; if (s) { s.guest = g; g.path = [new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.2), new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.8), s.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0; }
     this.updateLabel(g);
@@ -563,6 +567,7 @@ export class Crowd {
       g._acc = (g._acc || 0) + dt;
       const far = g.pos.distanceToSquared(camPos) > 300 && !g.special && g.state === 'placed';
       if (!(far && ((this._frame + (g.seed * 10 | 0)) & 1))) { g.char.update(g._acc); g._acc = 0; }
+      if (g.player && g.state === 'placed') g.player.update(dt, beat);
       this._m.makeScale(g.scale, 1, g.scale).setPosition(g.pos.x, g.pos.y + 0.025, g.pos.z);
       this.R.push('blob', this._m, this._white);
       // efeitos contínuos
@@ -616,7 +621,10 @@ export class Crowd {
         if (!g.path.length) {
           g.state = 'placed'; g.speed = 0; g.entering = false;
           g.yawTarget = this._faceCenter(g);
-          g.anim.play(g.band ? g.band.inst : (this.mode || pick(DANCES)), { blend: 0.4 });
+          if (g.band) {
+            if (!g.player) g.player = new InstrumentPlayer(g.char, g.instKind || g.band.inst);
+            g.anim.play(g.player.bodyAnim, { blend: 0.4 });
+          } else g.anim.play(this.mode || pick(DANCES), { blend: 0.4 });
           g.timer = rnd(6, 14);
         }
       } else {
@@ -636,10 +644,10 @@ export class Crowd {
     }
     // ---- no lugar: dança e interage ----
     g.speed = 0;
-    if (g.band) { // músico: toca de frente para a pista
-      g.yawTarget = this._faceCenter(g);
+    if (g.band) { // músico: toca de frente para o público, balançando no ritmo
+      g.yawTarget = Math.atan2(-g.pos.x * 0.25, 4) + Math.sin(time * 0.9 + g.seed * 9) * 0.18;
       g.yaw += angDiff(g.yaw, g.yawTarget) * Math.min(1, dt * 3);
-      if (g.anim.name !== g.band.inst && g.busy <= 0) g.anim.play(g.band.inst, { blend: 0.4 });
+      if (g.player && g.anim.name !== g.player.bodyAnim && g.busy <= 0) g.anim.play(g.player.bodyAnim, { blend: 0.4 });
       return;
     }
     if (g.faceT > 0) { g.faceT -= dt; }

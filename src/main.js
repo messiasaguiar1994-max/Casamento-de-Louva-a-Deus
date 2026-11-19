@@ -10,6 +10,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildHall, FLOOR } from './scene/club.js';
+import { loadInstruments } from './chars/instruments.js';
 import { Groom3D, Bride3D } from './chars/heroes3d.js';
 import { loadChars } from './chars/models.js';
 import { Crowd } from './crowd/crowd.js';
@@ -94,6 +95,7 @@ audio.setSfxVolume(cfg.sfxVolume);
 audio.fileBpm = cfg.danceBpm || 150;
 
 await loadChars();
+await loadInstruments();
 const groom = new Groom3D();
 const bride = new Bride3D();
 scene.add(groom.group, bride.group);
@@ -118,6 +120,13 @@ const crowd = new Crowd(scene, {
 crowd.setLimit(cfg.limit);
 camDir.pickGuest = () => crowd.pickForCamera();
 camDir.crowdRef = crowd;
+camDir.hallRef = hall;
+camDir.obstacles = () => {
+  const out = [];
+  for (const g of crowd.list) out.push({ g, pos: g.pos, head: g.headPos(new THREE.Vector3()) });
+  for (const h of [groom, bride]) out.push({ g: h, pos: h.group.position, head: h.headTop(new THREE.Vector3()) });
+  return out;
+};
 const wedding = new WeddingDirector(groom, bride, { crowd, fx, audio, camDir });
 resize();
 window.addEventListener('resize', resize);
@@ -364,15 +373,16 @@ if (SHOT) {
   const gift = params.get('gift');
   for (let i = 0; i < steps; i++) {
     if (gift && i === 10) { const g = crowd.list.find((x) => !x.bot) || crowd.list[0]; if (gift === 'musician') { for (const x of crowd.list.slice(0, 4)) crowd.makeMusician(x); } else if (gift === 'couple') becomeCouple({ id: g.id, name: g.name, pic: g.pic }); else crowd.act(g, gift); }
+    if (params.has('focus') && i === Math.max(0, steps - 50)) { const L = crowd.list.filter((x) => x.state === 'placed'); const fq = params.get('focus'); const fg = fq.startsWith('band') ? L.filter((x) => x.band)[Number(fq.slice(4) || 0)] : L[Number(fq) % L.length]; if (fg) camDir.focusOn(fg, 30, 'tour'); }
     if (params.has('arrive') && i === 4) handleEvent({ type: 'gift', user: testUser(), giftName: 'Rose', diamonds: 1, count: 1 });
     tick(0.05);
   }
-  composer.render();
+  composer.render(); composer.render();
   window.__ready = true;
 } else {
   renderer.setAnimationLoop(frame);
 }
-window.__game = game;
+window.__game = game; window.__scene = scene; window.__render = () => composer.render(); window.__cam = camDir; window.__wed = { groom, bride };
 window.__tick = tick;
 
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }

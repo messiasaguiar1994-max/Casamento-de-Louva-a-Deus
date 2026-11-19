@@ -39,6 +39,74 @@ export class CameraDirector {
   }
   focusCouple(dur = 6) { this.focus = { couple: true, t: dur }; }
 
+  /** enquadra rosto e corpo do personagem, escolhendo um ângulo sem ninguém na frente */
+  _frame(F, g, dt) {
+    const head = g.headPos(this._v.clone());
+    const base = g.pos;
+    const hgt = THREE.MathUtils.clamp(head.y - base.y, 1.4, 3.2);
+    const look = new THREE.Vector3(base.x, base.y + hgt * 0.6, base.z);
+    const vf = THREE.MathUtils.degToRad(this.cam.fov) / 2;
+    const dist = (hgt * (F.kind === 'vip' ? 0.95 : 0.75)) / Math.tan(vf);
+    F.re = (F.re || 0) - dt;
+    if (F.re <= 0 || F.ang === undefined) {
+      F.re = 0.5;
+      const yaw = g.yaw;
+      const offs = [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.6, -1.6];
+      let best = null, bestScore = Infinity;
+      for (const [df, dpen] of [[1, 0], [0.7, 0.8]]) {
+        for (const [elev, pen] of [[0.28, 0], [0.5, 1.2], [0.72, 2.4]]) {
+          for (const o of offs) {
+            const a = yaw + o;
+            const p = this._camAt(look, a, elev, dist * df);
+            const same = F.ang !== undefined && Math.abs(a - F.ang) < 0.01 && Math.abs(elev - F.elev) < 0.01 && df === F.df;
+            const sc = this._blocked(p, look, head, g) * 10 + Math.abs(o) + pen + dpen + (same ? -0.6 : 0);
+            if (sc < bestScore) { bestScore = sc; best = { a, elev, df }; }
+          }
+        }
+      }
+      F.ang = best.a; F.elev = best.elev; F.df = best.df;
+    }
+    this.dLook.copy(look);
+    this.dPos.copy(this._camAt(look, F.ang, F.elev, dist * F.df));
+  }
+  _camAt(look, a, elev, dist) {
+    const p = new THREE.Vector3(look.x + Math.sin(a) * dist * Math.cos(elev), look.y + Math.sin(elev) * dist, look.z + Math.cos(a) * dist * Math.cos(elev));
+    return p;
+  }
+  /** quantos obstáculos ficam entre a câmera e o personagem (outros personagens, palco, parede) */
+  _blocked(p, look, head, g) {
+    let n = 0;
+    if (p.z < -13 || Math.abs(p.x) > 16) n += 3;
+    if (Math.abs(p.x) < STAGE.w / 2 + 0.3 && p.z > STAGE.z - STAGE.d / 2 && p.z < STAGE.z + STAGE.d / 2 + 1.5 && p.y < STAGE.y + 0.4) n += 3;
+    // candelabros do palco e da pista
+    for (const [cx, cy, cz, top] of [[-3.6, STAGE.y, STAGE.z - STAGE.d / 2 + 0.4, 1.9], [3.6, STAGE.y, STAGE.z - STAGE.d / 2 + 0.4, 1.9], [-7.2, 0, -1.6, 2.4], [7.2, 0, -1.6, 2.4]]) {
+      if (p.distanceTo(new THREE.Vector3(cx, cy + top, cz)) < 3) n += 2; // chamas das velas brilham demais de perto
+      const A = p, Bp = head;
+      for (const k of [0.4, 0.8]) {
+        const P = new THREE.Vector3(cx, cy + top * k, cz), ab = Bp.clone().sub(A);
+        const t = THREE.MathUtils.clamp(P.clone().sub(A).dot(ab) / ab.lengthSq(), 0, 1);
+        if (A.clone().addScaledVector(ab, t).distanceTo(P) < 0.6) { n++; break; }
+      }
+    }
+    if (!this.obstacles) return n;
+    const seg = (A, B, P, r) => { // distância do ponto P ao segmento AB < r
+      const ab = B.clone().sub(A), t = THREE.MathUtils.clamp(P.clone().sub(A).dot(ab) / ab.lengthSq(), 0, 1);
+      return A.clone().addScaledVector(ab, t).distanceTo(P) < r;
+    };
+    for (const o of this.obstacles()) {
+      if (o.g === g) continue;
+      // corpo como 3 pontos (pés, meio, cabeça)
+      const rad = o.g && o.g.char && o.g.char.key === 'tung_tung' ? 0.95 : 0.65; // o tronco é bem largo
+      for (const k of [0.3, 0.6, 0.85, 1.0]) {
+        const P = o.pos.clone().lerp(o.head, k);
+        if (seg(p, head, P, rad) || seg(p, look, P, rad * 0.65)) { n++; break; }
+      }
+      if (Math.hypot(o.pos.x - p.x, o.pos.z - p.z) < 0.9 && p.y < o.head.y + 0.6) n += 2;
+      if (o.head.distanceTo(p) < 1.7) n += 1; // alguém colado na câmera fica enorme na tela
+    }
+    return n;
+  }
+
   update(dt, time) {
     // rodízio: alterna enquadramentos gerais / noivos com close em participantes ('guest')
     const SHOTS = ['wide', 'guest', 'couple', 'guest', 'aerial', 'guest', 'band', 'guest', 'medium', 'guest', 'sweep', 'guest', 'aerial', 'guest'];
@@ -74,9 +142,8 @@ export class CameraDirector {
         this.dLook.copy(head).add(new THREE.Vector3(0, -0.7, 0));
         this.dPos.set(head.x + face.x * 4.6 + face.z * 1.2, head.y + 1.1, head.z + face.z * 4.6 - face.x * 1.2);
       } else {
-        this.dLook.copy(head).add(new THREE.Vector3(0, -0.4, 0));
-        const dist = this.focus.kind === 'vip' ? 5.2 : 3.6;
-        this.dPos.set(head.x + face.x * dist, head.y + (this.focus.kind === 'vip' ? 1.2 : 2.0), head.z + face.z * dist);
+        // close de corpo inteiro (rosto + corpo), sem nada na frente
+        this._frame(this.focus, g, dt);
       }
     } else if (this.focus && this.focus.couple) {
       this.dLook.set(0, C.y + 1.75, C.z);
@@ -101,8 +168,10 @@ export class CameraDirector {
       this.dLook.set(x * 0.6, 1.2, FZ - 1.5);
     } else if (shot === 'band') {
       const a = Math.sin(time * 0.15);
-      this.dPos.set(a * 2.5, C.y + 2.6, C.z + 6.5);
-      this.dLook.set(0, C.y + 1.4, C.z - 0.6);
+      // um lado da banda de cada vez (os noivos não tampam)
+      const side = Math.sin(time * 0.07) > 0 ? 1 : -1;
+      this.dPos.set(side * (4.6 + a * 0.6), C.y + 2.3, C.z + 4.2);
+      this.dLook.set(side * 2.6, C.y + 1.2, C.z - 0.8);
     } else if (shot === 'aerial') {
       // vista aérea: enquadra a pista inteira (todos os convidados) de cima
       const ctr = this.crowdRef ? this.crowdRef.center : new THREE.Vector3(0, 0, FZ);
@@ -111,14 +180,17 @@ export class CameraDirector {
       const hf = 2 * Math.atan(Math.tan(vf / 2) * this.cam.aspect);
       const dist = R / Math.tan(hf / 2);
       const a = time * 0.05;
-      this.dPos.set(ctr.x + Math.sin(a) * dist * 0.15, dist * 0.96, ctr.z + dist * 0.2 + Math.cos(a) * dist * 0.1);
-      this.dLook.set(ctr.x, 0, ctr.z);
+      // inclinada (~35°), para aparecer o corpo de todo mundo e não só a cabeça
+      const d2 = dist * 1.08;
+      this.dPos.set(ctr.x + Math.sin(a) * d2 * 0.12, d2 * 0.8, ctr.z + d2 * 0.58);
+      this.dLook.set(ctr.x, 0.6, ctr.z - 0.6);
     } else if (shot === 'high') {
       this.dPos.set(0, 22, FZ + 10); this.dLook.set(0, 0, FZ - 3);
     } else if (shot === 'altar') {
       this.dPos.set(0, C.y + 3, C.z + 7); this.dLook.set(0, C.y + 4.5, C.z - 1.5);
     }
     if (this.crowdRef) this.crowdRef.overview = !this.focus && shot === 'aerial';
+    if (this.hallRef && this.hallRef.setAerial) { const av = !this.focus && shot === 'aerial'; if (av !== this._aer) { this._aer = av; this.hallRef.setAerial(av); } }
     const f = 1 - Math.exp(-dt * (this.focus ? 2.2 : 1.1));
     this.pos.lerp(this.dPos, f);
     this.look.lerp(this.dLook, f);
