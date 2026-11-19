@@ -23,29 +23,34 @@ import urlSax from '../assets/instr/sax.glb?url';
 // tamanho no jogo (personagens têm 2,1 de altura), onde prende e onde ficam as mãos (coordenadas do modelo, antes da escala)
 const DEFS = {
   violao: {
-    url: urlViolao, size: 1.12, socket: 'belly', body: 'guitar',
+    url: urlViolao, size: 1.12, socket: 'belly', body: 'guitar', wind: false,
     pos: [-0.12, -0.02, 0.1], rot: [0, -0.3, 0.42],
-    hands: { L: [0.36, 0, 0.0], R: [-0.03, 0, 0.12] },
+    hands: { L: { p: [0.36, -0.01, -0.06], f: [0, 1, 0.35], n: [0, 0, 1] },   // atrás do braço, dedos por cima
+      R: { p: [-0.04, 0, 0.075], f: [0.3, -1, 0], n: [0, 0, -1] } },           // palma virada para as cordas
   },
   guitarra: {
-    url: urlGuitarra, size: 1.08, socket: 'belly', body: 'guitar',
+    url: urlGuitarra, size: 1.08, socket: 'belly', body: 'guitar', wind: false,
     pos: [-0.1, -0.02, 0.1], rot: [0, -0.3, 0.42],
-    hands: { L: [0.42, 0, 0.0], R: [-0.02, 0, 0.11] },
+    hands: { L: { p: [0.42, -0.01, -0.055], f: [0, 1, 0.35], n: [0, 0, 1] },
+      R: { p: [-0.03, 0, 0.07], f: [0.3, -1, 0], n: [0, 0, -1] } },
   },
   trompete: {
-    url: urlTrumpet, size: 0.62, socket: 'mouth', body: 'idle',
+    url: urlTrumpet, size: 0.62, socket: 'mouth', body: 'idle', wind: true,
     pos: [0, 0, 0.02], rot: [0.16, 0, 0],
-    hands: { L: [0.05, -0.1, 0.42], R: [0.03, 0.12, 0.4] },
+    hands: { L: { p: [0.1, -0.02, 0.43], f: [0, 1, 0.2], n: [-1, 0, 0] },       // segura os pistos pelo lado
+      R: { p: [0.03, 0.17, 0.4], f: [0, 0, 1], n: [0, -1, 0] } },               // dedos em cima dos pistos
   },
   trombone: {
-    url: urlTrombone, size: 1.05, socket: 'mouth', body: 'idle',
+    url: urlTrombone, size: 1.05, socket: 'mouth', body: 'idle', wind: true,
     pos: [0, 0, 0.02], rot: [0.14, 0, -1.15],
-    hands: { L: [0.02, 0.16, 0.22], R: [0.03, 0.0, 0.6] },
+    hands: { L: { p: [0.02, 0.16, 0.22] }, R: { p: [0.03, 0.0, 0.6] } },
   },
   sax: {
-    url: urlSax, size: 0.85, socket: 'mouth', body: 'idle',
-    pos: [0, 0, 0.03], rot: [-0.12, 0, -0.22],
-    hands: { L: [0, -0.32, 0.31], R: [0, -0.62, 0.33] },
+    // como na foto: o sax desce na diagonal, para a frente e para a direita do músico
+    url: urlSax, size: 0.85, socket: 'mouth', body: 'idle', wind: true,
+    pos: [0, 0, 0.03], rot: [-0.22, 0.25, -0.42],
+    hands: { L: { p: [0, -0.33, 0.25], f: [-1, 0.1, 0.25], n: [0, 0, 1] },     // mão de cima
+      R: { p: [0, -0.63, 0.27], f: [1, 0.1, 0.25], n: [0, 0, 1] } },            // mão de baixo
   },
 };
 export const INSTRUMENT_KINDS = Object.keys(DEFS);
@@ -94,6 +99,16 @@ export function socketsFor(key) {
   const sb = B.Spine || B.Hips, S = wp(sb);
   const by = S.y + 0.05;
   make('belly', B.Spine1 ? 'Spine1' : sb.name, new THREE.Vector3(S.x, by, front(S.x, by, S.z, S.z + 0.25)));
+  // eixos da mão (no espaço do osso da mão): para onde apontam os dedos e a palma
+  out.hand = {};
+  for (const side of ['Left', 'Right']) {
+    const hd = B[side + 'Hand'], mid = B[side + 'HandMiddle1'], idx = B[side + 'HandIndex1'], pk = B[side + 'HandPinky1'] || B[side + 'HandRing1'];
+    if (!hd || !mid || !idx || !pk) continue;
+    const iq = hd.getWorldQuaternion(new THREE.Quaternion()).invert();
+    const f = wp(mid).sub(wp(hd)).normalize(), sd = wp(idx).sub(wp(pk)).normalize();
+    const n = new THREE.Vector3().crossVectors(f, sd).normalize(); if (side === 'Right') n.negate();
+    out.hand[side] = { f: f.applyQuaternion(iq).normalize(), n: n.applyQuaternion(iq).normalize(), len: wp(mid).distanceTo(wp(hd)) };
+  }
   return (T.sockets[key] = out);
 }
 
@@ -128,23 +143,40 @@ function solveArm(upper, lower, hand, target, pole) {
 }
 
 // ------------------------------------------------------------------
+const _m1 = new THREE.Matrix4(), _m2 = new THREE.Matrix4(), _iq = new THREE.Quaternion(), _hq = new THREE.Quaternion();
+const _F = new THREE.Vector3(), _N = new THREE.Vector3(), _X = new THREE.Vector3(), _fl = new THREE.Vector3(), _nl = new THREE.Vector3(), _xl = new THREE.Vector3();
+/** gira a mão para os dedos apontarem para F e a palma para N (mundo) */
+function orientHand(hand, ax, F, N) {
+  _N.copy(N).addScaledVector(F, -N.dot(F)).normalize();
+  _X.crossVectors(F, _N);
+  _fl.copy(ax.f); _nl.copy(ax.n).addScaledVector(_fl, -ax.n.dot(_fl)).normalize(); _xl.crossVectors(_fl, _nl);
+  _m1.makeBasis(F, _N, _X); _m2.makeBasis(_fl, _nl, _xl).transpose();
+  _hq.setFromRotationMatrix(_m1.multiply(_m2));            // rotação da mão no mundo
+  hand.parent.getWorldQuaternion(_iq).invert();
+  hand.quaternion.copy(_iq.multiply(_hq));
+  hand.updateMatrixWorld(true);
+}
+
 export class InstrumentPlayer {
   constructor(char, kind) {
     this.char = char; this.kind = kind; this.def = DEFS[kind];
-    const d = this.def, sk = socketsFor(char.key)[d.socket];
+    const d = this.def, socks = socketsFor(char.key), sk = socks[d.socket];
+    this.handAx = socks.hand || {};
     this.socket = new THREE.Object3D();
     if (sk) { sk.local.decompose(this.socket.position, this.socket.quaternion, this.socket.scale); char.bones[sk.bone].add(this.socket); }
     else char.root.add(this.socket);
+    this.sockScale = this.socket.scale.clone();
     const inst = T.models[kind].clone(true);
     inst.scale.setScalar(d.size);
     inst.position.set(...d.pos); inst.rotation.set(...d.rot);
     this.socket.add(inst); this.inst = inst;
-    this.mk = {};
-    for (const s of ['L', 'R']) { const o = new THREE.Object3D(); o.position.set(...d.hands[s]); inst.add(o); this.mk[s] = o; }
-    this.base = { L: new THREE.Vector3(...d.hands.L), R: new THREE.Vector3(...d.hands.R) };
+    this.mk = {}; this.base = {};
+    for (const s of ['L', 'R']) { const h = d.hands[s]; const o = new THREE.Object3D(); o.position.set(...h.p); inst.add(o); this.mk[s] = o; this.base[s] = new THREE.Vector3(...h.p); }
     this.fret = 0; this.fretT = 0;
     this.tgt = new THREE.Vector3(); this.pole = new THREE.Vector3();
     this.t = Math.random() * 10;
+    this.headBase = char.bones.Head ? char.bones.Head.scale.clone() : null;
+    this.modelY = char.model.position.y;
   }
   get bodyAnim() { return this.def.body; }
   /** movimento de tocar (mexe os marcadores das mãos no próprio instrumento) */
@@ -158,40 +190,63 @@ export class InstrumentPlayer {
       this.fretT -= dt; if (this.fretT <= 0) { this.fretT = 0.9 + Math.random() * 1.2; this.fret = (Math.random() - 0.5) * 0.16; }
       L.x += (bL.x + this.fret - L.x) * Math.min(1, dt * 10); L.y = bL.y; L.z = bL.z;
     } else if (k === 'trombone') {
-      // vara do trombone indo e voltando
-      R.set(bR.x, bR.y, bR.z + 0.18 * Math.sin(ph * 0.5 + this.t * 0.6));
+      R.set(bR.x, bR.y, bR.z + 0.18 * Math.sin(ph * 0.5 + this.t * 0.6));   // vara indo e voltando
       L.copy(bL);
     } else {
-      // pistos / chaves: dedos batendo de leve
-      R.set(bR.x, bR.y + Math.max(0, Math.sin(ph * 2)) * 0.012, bR.z);
+      R.set(bR.x, bR.y + Math.max(0, Math.sin(ph * 2)) * 0.012, bR.z);       // dedos nas chaves
       L.set(bL.x, bL.y + Math.max(0, Math.sin(ph * 2 + 1.5)) * 0.01, bL.z);
+    }
+  }
+  /** corpo de quem toca sopro (como o saxofonista da foto): balança, inclina para trás e
+   *  para a frente no ritmo, dobra o joelho, cabeça acompanha; bochechas "sopram" */
+  _windBody(beat) {
+    const B = this.char.bones, t = this.t, ph = (beat % 1) * Math.PI * 2;
+    const rot = (bone, ax, ay, az) => { if (!bone) return; _q.setFromEuler(new THREE.Euler(ax, ay, az)); bone.quaternion.multiply(_q); };
+    rot(B.Spine, -0.1 - 0.1 * Math.sin(ph * 0.5), 0.18 * Math.sin(t * 0.9), 0.06 * Math.sin(t * 0.9 + 1));
+    rot(B.Spine1, -0.05 * Math.sin(ph * 0.5), 0.08 * Math.sin(t * 0.9), 0);
+    rot(B.Head || B.Neck, 0.04 + 0.04 * Math.sin(ph), 0, 0);   // cabeça baixa, para o bocal
+    this.char.model.position.y = this.modelY - 0.035 * (0.5 + 0.5 * Math.cos(ph)) * this.char.root.scale.y; // joelho no ritmo
+    // bochechas enchendo de ar ao soprar (a cabeça "infla" um pouco; o instrumento não muda de tamanho)
+    if (this.headBase && B.Head) {
+      const k = 0.5 + 0.5 * Math.sin(ph * 2);
+      B.Head.scale.set(this.headBase.x * (1 + 0.07 * k), this.headBase.y * (1 - 0.02 * k), this.headBase.z * (1 + 0.09 * k));
+      this.socket.scale.set(this.sockScale.x / (1 + 0.07 * k), this.sockScale.y / (1 - 0.02 * k), this.sockScale.z / (1 + 0.09 * k));
     }
   }
   /** depois da animação do corpo: leva as mãos até o instrumento */
   update(dt, beat) {
     this._play(dt, beat);
     const c = this.char, B = c.bones;
+    if (this.def.wind) this._windBody(beat);
     c.root.updateMatrixWorld(true);
     const rq = c.root.getWorldQuaternion(_wq).clone();
     const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(rq), left = new THREE.Vector3(1, 0, 0).applyQuaternion(rq);
+    const iqw = this.inst.getWorldQuaternion(new THREE.Quaternion());
     for (const s of ['L', 'R']) {
       const side = s === 'L' ? 'Left' : 'Right';
       const up = B[side + 'Arm'], lo = B[side + 'ForeArm'], hd = B[side + 'Hand'];
       if (!up || !lo || !hd) continue;
-      this.mk[s].getWorldPosition(this.tgt);
-      // cotovelo para baixo, um pouco para fora e para trás
+      const h = this.def.hands[s], ax = this.handAx[side];
+      const palm = this.mk[s].getWorldPosition(new THREE.Vector3());
       this.pole.set(0, -1, 0).addScaledVector(left, s === 'L' ? 0.55 : -0.55).addScaledVector(fwd, -0.35);
-      solveArm(up, lo, hd, this.tgt, this.pole);
-      // a palma (base dos dedos) é que encosta no instrumento, não o pulso:
-      // mede a distância pulso -> dedos e resolve de novo com o alvo recuado
-      const knuckle = B[side + 'HandMiddle1'] || B[side + 'HandIndex1'];
-      if (knuckle) {
-        hd.getWorldPosition(_a); knuckle.getWorldPosition(_b);
-        _c.subVectors(_b, _a).multiplyScalar(0.8);
-        this.tgt.sub(_c);
+      // 2 passadas: braço até perto -> vira a mão -> recua o pulso para a palma ficar no ponto certo
+      for (let it = 0; it < 2; it++) {
+        if (it === 0) this.tgt.copy(palm);
         solveArm(up, lo, hd, this.tgt, this.pole);
+        if (h.f && ax) orientHand(hd, ax, _a.set(...h.f).applyQuaternion(iqw).normalize().clone(), _b.set(...h.n).applyQuaternion(iqw).normalize().clone());
+        const knuckle = B[side + 'HandMiddle1'] || B[side + 'HandIndex1'];
+        if (!knuckle) break;
+        hd.getWorldPosition(_c); knuckle.getWorldPosition(_e);
+        this.tgt.copy(palm).sub(_e.sub(_c).multiplyScalar(0.55));
       }
+      solveArm(up, lo, hd, this.tgt, this.pole);
+      if (h.f && ax) orientHand(hd, ax, _a.set(...h.f).applyQuaternion(iqw).normalize().clone(), _b.set(...h.n).applyQuaternion(iqw).normalize().clone());
     }
   }
-  dispose() { this.socket.parent && this.socket.parent.remove(this.socket); }
+  dispose() {
+    this.socket.parent && this.socket.parent.remove(this.socket);
+    const B = this.char.bones;
+    if (this.headBase && B.Head) B.Head.scale.copy(this.headBase);
+    this.char.model.position.y = this.modelY;
+  }
 }

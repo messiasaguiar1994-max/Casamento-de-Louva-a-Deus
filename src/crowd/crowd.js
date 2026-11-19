@@ -19,12 +19,27 @@ const BODY_R = 0.33;   // "raio do corpo": ninguém chega mais perto que 2x isso
 export const CAP = 240;
 // palco da banda (atrás dos noivos, dos dois lados do tapete)
 // banda: em cima do palco, dos dois lados dos noivos
-const BAND = [[-3.3, -5.9], [-2.1, -7.2], [2.1, -7.2], [3.3, -5.9]];
+function bandSlots() {
+  // palco largo: fileiras dos dois lados dos noivos, da frente para trás, do meio para fora
+  const out = [], fz = STAGE.z + STAGE.d / 2;
+  for (const z of [fz - 0.65, fz - 1.75, fz - 2.85, fz - 3.95]) {
+    for (const x of [2.15, 3.05, 3.95, 4.85, 5.6]) {
+      for (const sx of [-1, 1]) {
+        const X = sx * x;
+        if (z < fz - 3.5 && x < 3.3) continue;   // atrás do arco
+        const hit = COLL.some((c) => !c.stage && Math.hypot(c.x1 - X, c.z1 - z) < c.r + 0.42 && c.x1 === c.x2);
+        if (!hit) out.push([X, z]);
+      }
+    }
+  }
+  return out;
+}
+const BAND = bandSlots();
 const ENTRY_DANCES = ['chicken', 'runningman', 'charleston', 'twist'];  // entrada rápida e engraçada
 const SLOT_GAP = 1.45;   // espaço entre lugares: sobra corredor entre as fileiras
 const LANE_X = -6.25;    // corredor junto da grade da esquerda (por onde quem chega anda)
 // um instrumento por lugar da banda (no trompete, às vezes vem trombone)
-const INSTRUMENTS = ['violao', 'trompete', 'sax', 'guitarra'];
+const INSTRUMENTS = ['violao', 'trompete', 'sax', 'guitarra'];   // vai repetindo pelos lugares
 const AISLE = 1.35;
 const RING0 = 4.0, RING_GAP = 1.75, SPACING = 1.55;
 
@@ -188,7 +203,7 @@ export class Crowd {
     this.vip = null;
     // lugar de destaque: no corredor da frente, entre os noivos e a câmera
     // palco da banda
-    this.bandSlots = BAND.map(([x, z], i) => ({ pos: new THREE.Vector3(x, STAGE.y, z), inst: INSTRUMENTS[i], guest: null, since: 0 }));
+    this.bandSlots = BAND.map(([x, z], i) => ({ pos: new THREE.Vector3(x, STAGE.y, z), inst: INSTRUMENTS[i % INSTRUMENTS.length], guest: null, since: 0 }));
     this.vipSlot = { pos: new THREE.Vector3(0, 0, FLOOR.z0 + 0.9), guest: null };
   }
 
@@ -295,7 +310,7 @@ export class Crowd {
   _stagePath(p) {
     const sx = Math.sign(p.x) || 1;
     return [new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.9), new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.3),
-      new THREE.Vector3(sx * 2.7, STAGE.y, STAGE.z + STAGE.d / 2 - 0.5), p.clone()];   // contorna os noivos pela frente
+      new THREE.Vector3(sx * 1.7, STAGE.y, STAGE.z + STAGE.d / 2 - 0.3), new THREE.Vector3(p.x, STAGE.y, STAGE.z + STAGE.d / 2 - 0.3), p.clone()];   // contorna os noivos pela frente
   }
   /** fila de close: cada um que entra ganha o seu momento na câmera */
   _queueEntrance(g) {
@@ -497,7 +512,11 @@ export class Crowd {
       g.setAcc('face', null);
       const forced = new URLSearchParams(location.search).get('inst'); // só para testes
       g.instKind = forced || (slot.inst === 'trompete' && Math.random() < 0.5 ? 'trombone' : slot.inst);
-      g.path = g.state === 'arriving' && g.entering ? [new THREE.Vector3(ENTRY.x, 0, ENTRY.z), new THREE.Vector3(LANE_X, 0, ENTRY.z), new THREE.Vector3(LANE_X, 0, FLOOR.z0 + 0.3), new THREE.Vector3(0, 0, FLOOR.z0 + 0.3), ...this._stagePath(slot.pos)] : [...(g.pos.y < 0.3 ? this._toAisle(g.pos) : []), ...this._stagePath(slot.pos)]; g.state = 'arriving'; g.arriveDelay = g.arriveDelay > 0 ? g.arriveDelay : 0.3;
+      const front = [new THREE.Vector3(LANE_X, 0, FLOOR.z0 + 0.3), new THREE.Vector3(0, 0, FLOOR.z0 + 0.3)];
+      if (g.pos.x < ENTRY.x - 0.05) g.path = [new THREE.Vector3(ENTRY.x, 0, ENTRY.z), new THREE.Vector3(LANE_X, 0, ENTRY.z), ...front, ...this._stagePath(slot.pos)];  // ainda na escada
+      else if (g.pos.x < LANE_X + 0.4) g.path = [...front, ...this._stagePath(slot.pos)];                                                              // no corredor da esquerda
+      else if (g.pos.y > 0.3) g.path = [this._stagePath(slot.pos).slice(-1)[0]];                                                                      // já no palco
+      else g.path = [...this._toAisle(g.pos), ...this._stagePath(slot.pos)]; g.state = 'arriving'; g.arriveDelay = g.arriveDelay > 0 ? g.arriveDelay : 0.3;
       this.updateLabel(g);
     }
     slot.since = performance.now();
@@ -513,7 +532,7 @@ export class Crowd {
     g.band = null; g.role = 'guest';
     if (g.player) { g.player.dispose(); g.player = null; }
     const s = this.freeSlot();
-    g.slot = s; if (s) { s.guest = g; const sx = Math.sign(g.pos.x) || 1; g.path = [new THREE.Vector3(sx * 2.7, STAGE.y, STAGE.z + STAGE.d / 2 - 0.5), new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.3), new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.9), new THREE.Vector3(0, 0, s.pos.z + SLOT_GAP / 2), new THREE.Vector3(s.pos.x, 0, s.pos.z + SLOT_GAP / 2), s.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0; }
+    g.slot = s; if (s) { s.guest = g; const sx = Math.sign(g.pos.x) || 1; g.path = [new THREE.Vector3(g.pos.x, STAGE.y, STAGE.z + STAGE.d / 2 - 0.3), new THREE.Vector3(sx * 1.7, STAGE.y, STAGE.z + STAGE.d / 2 - 0.3), new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.3), new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.9), new THREE.Vector3(0, 0, s.pos.z + SLOT_GAP / 2), new THREE.Vector3(s.pos.x, 0, s.pos.z + SLOT_GAP / 2), s.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0; }
     this.updateLabel(g);
   }
 
@@ -586,7 +605,7 @@ export class Crowd {
       root.scale.setScalar(g.scale);
       // otimização: quem está longe da câmera anima a cada 2 quadros
       g._acc = (g._acc || 0) + dt;
-      const far = g.pos.distanceToSquared(camPos) > 300 && !g.special && g.state === 'placed';
+      const far = g.pos.distanceToSquared(camPos) > 300 && !g.special && g.state === 'placed' && !g.player;
       if (!(far && ((this._frame + (g.seed * 10 | 0)) & 1))) { g.char.update(g._acc); g._acc = 0; }
       if (g.player && g.state === 'placed') g.player.update(dt, beat);
       this._m.makeScale(g.scale, 1, g.scale).setPosition(g.pos.x, g.pos.y + 0.025, g.pos.z);

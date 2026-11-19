@@ -16,7 +16,7 @@ import { merge, roseGeo } from '../mantis/geometry.js';
 import urlZombot from '../assets/chars/zombot.glb?url';
 
 // planta (o resto do jogo usa estes números)
-export const STAGE = { x: 0, y: 1.3, z: -6.3, w: 8, d: 4.4 };      // palco dos noivos
+export const STAGE = { x: 0, y: 1.3, z: -6.6, w: 12, d: 5 };      // palco dos noivos e da banda (largo: cabe todo músico)
 export const FLOOR = { x0: -6, x1: 6, z0: -2.6, z1: 8.6 };          // pista de LED
 export const ENTRY = new THREE.Vector3(-9.6, 0, 3.2);               // pé da escada de entrada
 export const STAIR_TOP = new THREE.Vector3(-15, 3.2, 3.2);          // de onde os convidados aparecem
@@ -52,7 +52,7 @@ export function colliders() {
   add(-2.4, fz, -2.4, fz + 1.4, 0.15, true); add(2.4, fz, 2.4, fz + 1.4, 0.15, true);
   add(-2.4, fz + 1.4, 2.4, fz + 1.4, 0.15, true);   // degraus (só para quem vai subir)
   add(-hw, fz, -hw, bz, 0.15, true); add(hw, fz, hw, bz, 0.15, true);
-  for (const sx of [1, -1]) { add(sx * 2.7, STAGE.z - 1.4, sx * 2.7, STAGE.z - 1.4, 0.32); add(sx * 3.6, bz + 0.4, sx * 3.6, bz + 0.4, 0.35); add(sx * 4.9, STAGE.z - 1.25, sx * 4.9, STAGE.z + 0.05, 0.85); }
+  for (const sx of [1, -1]) { add(sx * 2.7, STAGE.z - 1.4, sx * 2.7, STAGE.z - 1.4, 0.32); add(sx * 5.65, bz + 0.35, sx * 5.65, bz + 0.35, 0.35); add(sx * 6.75, STAGE.z - 1.25, sx * 6.75, STAGE.z + 0.05, 0.85); }
   return L;
 }
 
@@ -259,7 +259,7 @@ export function buildHall(scene, { quality = 'high' } = {}) {
   const speakers = [];
   for (const s of [1, -1]) {
     const box = new THREE.Mesh(new THREE.BoxGeometry(1.7, 3.6, 1.3), [darkWood, darkWood, darkWood, darkWood, new THREE.MeshStandardMaterial({ map: spkTex, roughness: 0.6, emissive: 0x6a2a9a, emissiveIntensity: 0.15 }), darkWood]);
-    box.position.set(s * 4.9, 1.8, STAGE.z - 0.6); box.castShadow = true; hall.add(box); speakers.push(box);
+    box.position.set(s * 6.75, 1.8, STAGE.z - 0.6); box.castShadow = true; hall.add(box); speakers.push(box);
   }
   updaters.push((t, beat) => { const k = 1 + Math.pow(1 - (beat % 1), 6) * 0.025; for (const b of speakers) b.scale.set(k, 1, k); });
 
@@ -379,7 +379,7 @@ export function buildHall(scene, { quality = 'high' } = {}) {
     }
     hall.add(g);
   }
-  candelabra(-3.6, STAGE.y, STAGE.z - STAGE.d / 2 + 0.4, 1.0); candelabra(3.6, STAGE.y, STAGE.z - STAGE.d / 2 + 0.4, 1.0);  // cantos de trás do palco (não tampam a banda)
+  candelabra(-5.65, STAGE.y, STAGE.z - STAGE.d / 2 + 0.35, 1.0); candelabra(5.65, STAGE.y, STAGE.z - STAGE.d / 2 + 0.35, 1.0);  // cantos de trás do palco (não tampam a banda)
   candelabra(-7.2, 0, -1.6, 1.3); candelabra(7.2, 0, -1.6, 1.3);
   const candleLight = new THREE.PointLight(0xffb060, 18, 14, 2); candleLight.position.set(0, STAGE.y + 2.5, STAGE.z + 1.5); scene.add(candleLight);
   updaters.push((t) => { flames.forEach((f, i) => { f.scale.set(1 + Math.sin(t * 17 + i) * 0.12, 1.8 + Math.sin(t * 23 + i * 2) * 0.3, 1); }); candleLight.intensity = 16 + Math.sin(t * 13) * 2; });

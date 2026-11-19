@@ -79,7 +79,7 @@ export class CameraDirector {
     if (p.z < -13 || Math.abs(p.x) > 16) n += 3;
     if (Math.abs(p.x) < STAGE.w / 2 + 0.3 && p.z > STAGE.z - STAGE.d / 2 && p.z < STAGE.z + STAGE.d / 2 + 1.5 && p.y < STAGE.y + 0.4) n += 3;
     // candelabros do palco e da pista
-    for (const [cx, cy, cz, top] of [[-3.6, STAGE.y, STAGE.z - STAGE.d / 2 + 0.4, 1.9], [3.6, STAGE.y, STAGE.z - STAGE.d / 2 + 0.4, 1.9], [-7.2, 0, -1.6, 2.4], [7.2, 0, -1.6, 2.4]]) {
+    for (const [cx, cy, cz, top] of [[-5.65, STAGE.y, STAGE.z - STAGE.d / 2 + 0.35, 1.9], [5.65, STAGE.y, STAGE.z - STAGE.d / 2 + 0.35, 1.9], [-7.2, 0, -1.6, 2.4], [7.2, 0, -1.6, 2.4]]) {
       if (p.distanceTo(new THREE.Vector3(cx, cy + top, cz)) < 3) n += 2; // chamas das velas brilham demais de perto
       const A = p, Bp = head;
       for (const k of [0.4, 0.8]) {
@@ -170,8 +170,8 @@ export class CameraDirector {
       const a = Math.sin(time * 0.15);
       // um lado da banda de cada vez (os noivos não tampam)
       const side = Math.sin(time * 0.07) > 0 ? 1 : -1;
-      this.dPos.set(side * (4.6 + a * 0.6), C.y + 2.3, C.z + 4.2);
-      this.dLook.set(side * 2.6, C.y + 1.2, C.z - 0.8);
+      this.dPos.set(side * (4.2 + a * 0.8), C.y + 2.6, C.z + 6.2);
+      this.dLook.set(side * 3.8, C.y + 1.1, C.z - 0.6);
     } else if (shot === 'aerial') {
       // vista aérea: enquadra a pista inteira (todos os convidados) de cima
       const ctr = this.crowdRef ? this.crowdRef.center : new THREE.Vector3(0, 0, FZ);
