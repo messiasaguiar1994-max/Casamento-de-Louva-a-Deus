@@ -274,6 +274,7 @@ game.remote = link.remote;
 const panelEl = document.getElementById('panel');
 buildPanel(panelEl, game);
 hud.showFps(cfg.showFps || params.has('fps'));
+if (params.has('fps')) Object.assign(hud.fpsEl.style, { fontSize: '90px', top: '40%', right: '5%', background: '#000', padding: '10px', zIndex: 9999 });
 const gear = document.createElement('button');
 gear.id = 'gear'; gear.textContent = '⚙'; gear.title = 'Painel (P)';
 gear.onclick = () => panelEl.classList.toggle('hidden');
