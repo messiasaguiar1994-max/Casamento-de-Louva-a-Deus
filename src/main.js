@@ -30,7 +30,9 @@ const SHOT = params.has('shot');           // modo de teste (captura de tela)
 const cfg = loadConfig();
 // modo OBS (fonte de navegador): ?obs=1&user=seu_usuario
 const OBS = params.has('obs');
-if (OBS) cfg.quality = 'high';
+// OBS: leve por padrão (o PC também está codificando a live). ?q=high para máximo
+if (OBS) cfg.quality = ['low', 'medium', 'high'].includes(params.get('q')) ? params.get('q') : 'medium';
+const FPS_CAP = OBS ? 30 : 0;
 if (params.get('user')) cfg.username = params.get('user').replace(/^@/, '');
 if (params.get('q')) cfg.quality = params.get('q');
 
@@ -71,7 +73,8 @@ function resize() {
   camera.fov = w / h < 0.5 ? 46 : 42;
   camera.updateProjectionMatrix();
   const maxPr = cfg.quality === 'low' ? 0.85 : cfg.quality === 'medium' ? 1.25 : 2;
-  const pr = Math.min(window.devicePixelRatio || 1, 1920 / h, maxPr);
+  let pr = Math.min(window.devicePixelRatio || 1, 1920 / h, maxPr);
+  if (OBS) pr = (cfg.quality === 'high' ? 1920 : cfg.quality === 'medium' ? 1280 : 960) / h;  // desenha em 720p e o OBS amplia
   renderer.setPixelRatio(pr);
   renderer.setSize(w, h, false);
   composer.setPixelRatio(pr);
@@ -82,7 +85,7 @@ function resize() {
 function setQuality(q) {
   cfg.quality = q;
   bloom.enabled = q !== 'low';
-  renderer.shadowMap.enabled = q !== 'low';
+  renderer.shadowMap.enabled = q === 'high' || (q === 'medium' && !OBS);
   scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
   resize();
 }
@@ -290,7 +293,7 @@ function start() {
   if (startEl) startEl.remove();
 }
 if (!SHOT && APP) buildMenu(game, { onPlay: start });
-if (OBS && !SHOT) setTimeout(start, 500); // OBS libera o som sozinho
+if (OBS && !SHOT) { setTimeout(start, 500); setInterval(() => { if (audio.ctx && audio.ctx.state !== 'running') audio.ctx.resume(); }, 2000); } // OBS libera o som sozinho
 if (!SHOT && !APP && !OBS) {
   startEl = document.createElement('div');
   startEl.style.cssText = 'position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding-bottom:30%;z-index:5;cursor:pointer;pointer-events:auto';
@@ -344,7 +347,10 @@ function tick(dt) {
   camDir.update(dt, time);
   placeCoupleLabels();
 }
-function frame() {
+let _lastF = 0;
+function frame(now) {
+  if (FPS_CAP && now - _lastF < 1000 / FPS_CAP - 2) return;  // OBS: 30 quadros por segundo bastam
+  _lastF = now;
   timer.update();
   const dt = Math.min(0.05, timer.getDelta());
   tick(dt);
