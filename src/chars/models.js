@@ -7,6 +7,7 @@
 // =============================================================
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGLB } from '../util/glb.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import urlAnims from '../assets/chars/animacoes.glb?url';
 import urlNoivo from '../assets/chars/noivo_zumbi.glb?url';
@@ -37,13 +38,13 @@ export async function loadChars(onProgress = () => {}) {
   const L = new GLTFLoader();
   const keys = Object.keys(CHAR_URLS);
   let done = 0;
-  const anim = await L.loadAsync(urlAnims);
+  const anim = await loadGLB(urlAnims, L);
   onProgress(++done / (keys.length + 1));
   anim.scene.updateMatrixWorld(true);
   anim.scene.traverse((o) => { if (o.isBone) { o.name = clean(o.name); if (o.name === 'Hips') { T.animHips = o.position.clone(); T.animParentQ = o.parent.getWorldQuaternion(new THREE.Quaternion()); } } });
   T.rawClips = anim.animations;
   await Promise.all(keys.map(async (k) => {
-    const g = await L.loadAsync(CHAR_URLS[k]);
+    const g = await loadGLB(CHAR_URLS[k], L);
     const sc = g.scene;
     let hips = null;
     sc.traverse((o) => {

@@ -12,6 +12,7 @@
 // =============================================================
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGLB } from '../util/glb.js';
 import { createChar } from './models.js';
 import urlViolao from '../assets/instr/violao.glb?url';
 import urlGuitarra from '../assets/instr/guitarra.glb?url';
@@ -54,7 +55,7 @@ const T = { models: {}, sockets: {} };
 export async function loadInstruments() {
   const L = new GLTFLoader();
   await Promise.all(Object.entries(DEFS).map(async ([k, d]) => {
-    const g = await L.loadAsync(d.url);
+    const g = await loadGLB(d.url, L);
     g.scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; const ms = Array.isArray(o.material) ? o.material : [o.material]; for (const m of ms) { m.side = THREE.DoubleSide; if (m.map) m.map.anisotropy = 8; } } });
     T.models[k] = g.scene;
   }));

@@ -11,6 +11,7 @@
 // =============================================================
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { loadGLB } from '../util/glb.js';
 import { merge, roseGeo } from '../mantis/geometry.js';
 import urlZombot from '../assets/chars/zombot.glb?url';
 
@@ -475,7 +476,7 @@ export function buildHall(scene, { quality = 'high' } = {}) {
   }
 
   // ---------------- Zombot de enfeite (atrás, à direita, perto da lua) ----------------
-  new GLTFLoader().load(urlZombot, (g) => {
+  loadGLB(urlZombot).then((g) => {
     const z = g.scene; const box = new THREE.Box3().setFromObject(z), size = box.getSize(new THREE.Vector3());
     const s = 6 / size.y; z.scale.setScalar(s);
     z.position.set(-((box.min.x + box.max.x) / 2) * s, -box.min.y * s, -((box.min.z + box.max.z) / 2) * s);
