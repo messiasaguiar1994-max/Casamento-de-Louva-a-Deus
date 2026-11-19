@@ -8,14 +8,18 @@
 // =============================================================
 import * as THREE from 'three';
 import { DANCES } from '../chars/models.js';
+import { STAGE, FLOOR } from './club.js';
+
+const C = new THREE.Vector3(0, STAGE.y, STAGE.z + 0.4);           // centro do casal (no palco)
+const FZ = (FLOOR.z0 + FLOOR.z1) / 2;                                 // centro da pista
 
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
 export class CameraDirector {
   constructor(camera) {
     this.cam = camera;
-    this.pos = new THREE.Vector3(0, 9.5, 19);
-    this.look = new THREE.Vector3(0, 3, -6);
+    this.pos = new THREE.Vector3(0, 7.5, 17);
+    this.look = new THREE.Vector3(0, 3.5, -4);
     this.dPos = this.pos.clone();
     this.dLook = this.look.clone();
     this.shot = 'wide';
@@ -60,55 +64,59 @@ export class CameraDirector {
     if (this.focus && this.focus.guest) {
       const g = this.focus.guest;
       const head = g.headPos(this._v.clone());
-      // câmera na frente do rosto do convidado, um pouco acima (passa por cima da multidão)
+      // câmera na frente do rosto do convidado
       const face = new THREE.Vector3(Math.sin(g.yaw), 0, Math.cos(g.yaw));
       if (this.focus.kind === 'rocket') {
         this.dLook.copy(head);
         this.dPos.set(g.pos.x * 0.5, Math.max(4, head.y * 0.7), g.pos.z * 0.5 + 12);
+      } else if (this.focus.kind === 'entrance') {
+        // entrada: câmera vai na frente de quem chega, bem pertinho, acompanhando
+        this.dLook.copy(head).add(new THREE.Vector3(0, -0.7, 0));
+        this.dPos.set(head.x + face.x * 4.6 + face.z * 1.2, head.y + 1.1, head.z + face.z * 4.6 - face.x * 1.2);
       } else {
         this.dLook.copy(head).add(new THREE.Vector3(0, -0.4, 0));
         const dist = this.focus.kind === 'vip' ? 5.2 : 3.6;
-        this.dPos.set(head.x + face.x * dist, head.y + (this.focus.kind === 'vip' ? 1.2 : 2.4), head.z + face.z * dist);
+        this.dPos.set(head.x + face.x * dist, head.y + (this.focus.kind === 'vip' ? 1.2 : 2.0), head.z + face.z * dist);
       }
     } else if (this.focus && this.focus.couple) {
-      this.dLook.set(0, 1.85, 0.3);
-      this.dPos.set(Math.sin(time * 0.2) * 1.2, 2.5, 5.2);
+      this.dLook.set(0, C.y + 1.75, C.z);
+      this.dPos.set(Math.sin(time * 0.2) * 1.0, C.y + 2.2, C.z + 4.6);
     } else if (shot === 'wide') {
-      const a = Math.sin(time * 0.06) * 0.32;
-      this.dPos.set(Math.sin(a) * 19, 13, Math.cos(a) * 19 + 0.3);
-      this.dLook.set(0, 3.0, -6);
+      // de frente: palco, altar e a pista inteira
+      const a = Math.sin(time * 0.06);
+      this.dPos.set(a * 3, 9.2, FLOOR.z1 + 9);
+      this.dLook.set(0, 3.2, -3.5);
     } else if (shot === 'medium') {
-      const a = time * 0.05;
-      this.dPos.set(Math.sin(a) * 12.5, 6.2, Math.cos(a) * 12.5 + 0.3);
-      this.dLook.set(0, 1.4, 0.3);
+      const a = Math.sin(time * 0.07);
+      this.dPos.set(a * 5, 4.6, FLOOR.z1 + 1.5);
+      this.dLook.set(a * 1.2, 1.6, FZ - 2);
     } else if (shot === 'couple') {
-      const a = Math.sin(time * 0.12) * 0.6;
-      this.dPos.set(Math.sin(a) * 6.2, 2.8, Math.cos(a) * 6.2 + 0.3);
-      this.dLook.set(0, 1.7, 0.3);
+      const a = Math.sin(time * 0.12) * 0.5;
+      this.dPos.set(Math.sin(a) * 7.5, C.y + 3.6, C.z + Math.cos(a) * 7.5);
+      this.dLook.set(0, C.y + 1.3, C.z);
     } else if (shot === 'sweep') {
-      const a = -0.9 + k * 0.08;
-      this.dPos.set(Math.sin(a) * 9, 3.6, Math.cos(a) * 9 + 0.3);
-      this.dLook.set(Math.sin(a + 0.6) * 2, 1.4, Math.cos(a + 0.6) * 2);
+      // passeia por cima da pista, de um lado ao outro
+      const x = -6 + ((k * 0.9) % 12);
+      this.dPos.set(x, 3.4, FZ + 5);
+      this.dLook.set(x * 0.6, 1.2, FZ - 1.5);
     } else if (shot === 'band') {
-      // a banda tocando, atrás dos noivos
       const a = Math.sin(time * 0.15);
-      this.dPos.set(a * 1.5, 7.2, 5.5);
-      this.dLook.set(0, 0.9, -8.4);
+      this.dPos.set(a * 2.5, C.y + 2.6, C.z + 6.5);
+      this.dLook.set(0, C.y + 1.4, C.z - 0.6);
     } else if (shot === 'aerial') {
-      // vista aérea: enquadra o baile inteiro (todos os convidados) de cima
+      // vista aérea: enquadra a pista inteira (todos os convidados) de cima
+      const ctr = this.crowdRef ? this.crowdRef.center : new THREE.Vector3(0, 0, FZ);
       const R = (this.crowdRef ? this.crowdRef.extent() : 8) * 1.06;
       const vf = THREE.MathUtils.degToRad(this.cam.fov);
       const hf = 2 * Math.atan(Math.tan(vf / 2) * this.cam.aspect);
       const dist = R / Math.tan(hf / 2);
       const a = time * 0.05;
-      this.dPos.set(Math.sin(a) * dist * 0.22, dist * 0.96, 0.3 + Math.cos(a) * dist * 0.22);
-      this.dLook.set(0, 0, 0.3);
+      this.dPos.set(ctr.x + Math.sin(a) * dist * 0.15, dist * 0.96, ctr.z + dist * 0.2 + Math.cos(a) * dist * 0.1);
+      this.dLook.set(ctr.x, 0, ctr.z);
     } else if (shot === 'high') {
-      const a = time * 0.04;
-      this.dPos.set(Math.sin(a) * 9, 22, Math.cos(a) * 9 + 4);
-      this.dLook.set(0, 0, 0);
+      this.dPos.set(0, 22, FZ + 10); this.dLook.set(0, 0, FZ - 3);
     } else if (shot === 'altar') {
-      this.dPos.set(0, 6, 3); this.dLook.set(0, 4.5, -22);
+      this.dPos.set(0, C.y + 3, C.z + 7); this.dLook.set(0, C.y + 4.5, C.z - 1.5);
     }
     if (this.crowdRef) this.crowdRef.overview = !this.focus && shot === 'aerial';
     const f = 1 - Math.exp(-dt * (this.focus ? 2.2 : 1.1));
@@ -123,7 +131,7 @@ export class WeddingDirector {
   constructor(groom, bride, { crowd, fx, audio, camDir }) {
     this.groom = groom; this.bride = bride;
     this.crowd = crowd; this.fx = fx; this.audio = audio; this.camDir = camDir;
-    this.center = new THREE.Vector3(0, 0, 0.3);
+    this.center = C.clone();
     this.mode = 'dance';
     this.modeT = 0;
     this.modeDur = 18;
@@ -156,8 +164,8 @@ export class WeddingDirector {
         g.anim.play('kiss', { blend: 0.6 }); b.anim.play('kiss', { blend: 0.6 });
         this.camDir.focusCouple(5.5);
         setTimeout(() => {
-          this.fx.hearts(new THREE.Vector3(0, 2.6, 0.4), 30, 0.6);
-          this.fx.heartRing(new THREE.Vector3(0, 1.6, 0.4), 24, 1.6);
+          this.fx.hearts(new THREE.Vector3(0, C.y + 2.6, C.z + 0.1), 30, 0.6);
+          this.fx.heartRing(new THREE.Vector3(0, C.y + 1.6, C.z + 0.1), 24, 1.6);
           this.audio.sfx('kiss');
           this.crowd.react('clap');
         }, 1300);
@@ -165,7 +173,7 @@ export class WeddingDirector {
       case 'celebrate':
         this.modeDur = dur || 3;
         g.anim.play('celebrate'); b.anim.play('celebrate');
-        this.fx.confetti(new THREE.Vector3(0, 3, 0.3), 80, 2.2, 5);
+        this.fx.confetti(new THREE.Vector3(0, C.y + 3, C.z), 80, 2.2, 5);
         this.audio.sfx('cheer');
         break;
       case 'surprise':
@@ -196,8 +204,8 @@ export class WeddingDirector {
     this.pairAng += (tAng - this.pairAng) * (1 - Math.exp(-dt * 0.8));
     this.sep += this.sepBoost;
     const ca = Math.cos(this.pairAng), sa = Math.sin(this.pairAng);
-    this.groom.group.position.set(this.center.x - this.sep * ca, 0, this.center.z + this.sep * sa);
-    this.bride.group.position.set(this.center.x + this.sep * ca, 0, this.center.z - this.sep * sa);
+    this.groom.group.position.set(this.center.x - this.sep * ca, this.center.y, this.center.z + this.sep * sa);
+    this.bride.group.position.set(this.center.x + this.sep * ca, this.center.y, this.center.z - this.sep * sa);
     this.groom.group.rotation.y = this.pairAng + this.yawIn;
     this.bride.group.rotation.y = this.pairAng - this.yawIn;
     this.sep -= this.sepBoost;

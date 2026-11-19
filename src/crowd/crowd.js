@@ -11,11 +11,14 @@ import * as THREE from 'three';
 import { createChar, GUEST_CHARS, DANCES, HEIGHT } from '../chars/models.js';
 import { chitinTex, chitinBump, wingTex } from '../mantis/materials.js';
 import { accessoryDefs, HEAD_ACCS, FACE_ACCS, NECK_ACCS } from '../mantis/accessories.js';
-import { ENTRY } from '../scene/graveyard.js';
+import { ENTRY, STAIR_TOP, FLOOR, STAGE } from '../scene/club.js';
 
 export const CAP = 240;
 // palco da banda (atrás dos noivos, dos dois lados do tapete)
-const BAND = [[-3.1, -8.1], [-1.85, -9.0], [1.85, -9.0], [3.1, -8.1]];
+// banda: em cima do palco, dos dois lados dos noivos
+const BAND = [[-3.3, -5.9], [-2.1, -7.2], [2.1, -7.2], [3.3, -5.9]];
+const ENTRY_DANCES = ['chicken', 'runningman', 'charleston', 'twist'];  // entrada rápida e engraçada
+const SLOT_GAP = 1.3;
 const INSTRUMENTS = ['violao', 'violao', 'violao', 'violao']; // todos tocam violão (animação do Mixamo) // capacidade máxima de personagens
 const AISLE = 1.35;
 const RING0 = 4.0, RING_GAP = 1.75, SPACING = 1.55;
@@ -154,7 +157,9 @@ export class Crowd {
     this.guests = new Map();
     this.list = [];
     this.limit = 100;
-    this.center = new THREE.Vector3(0, 0, 0.3);
+    this.center = new THREE.Vector3(0, 0, (FLOOR.z0 + FLOOR.z1) / 2);
+    this.lookAt = new THREE.Vector3(0, 0, STAGE.z);   // todos dançam virados para o palco
+    this.entranceQ = []; this.entranceBusy = 0;
     this.slots = [];
     this.computeSlots(CAP);
     this.mode = null;          // dança em grupo
@@ -178,45 +183,30 @@ export class Crowd {
     this.vip = null;
     // lugar de destaque: no corredor da frente, entre os noivos e a câmera
     // palco da banda
-    this.bandSlots = BAND.map(([x, z], i) => ({ pos: new THREE.Vector3(x, 0.18, z), inst: INSTRUMENTS[i], guest: null, since: 0 }));
-    const wood = new THREE.MeshStandardMaterial({ color: 0x8a5a33, roughness: 0.6 });
-    const gold = new THREE.MeshStandardMaterial({ color: 0xe9b949, metalness: 1, roughness: 0.3 });
-    for (const s of this.bandSlots) {
-      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.8, 0.18, 32), wood);
-      st.position.set(s.pos.x, 0.09, s.pos.z); st.receiveShadow = true; scene.add(st);
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.77, 0.03, 8, 40), gold);
-      rim.rotation.x = Math.PI / 2; rim.position.set(s.pos.x, 0.18, s.pos.z); scene.add(rim);
-    }
-    this.vipSlot = { pos: new THREE.Vector3(0, 0, this.center.z + 2.7), r: 2.7, a: Math.PI / 2, ring: -1, guest: null };
+    this.bandSlots = BAND.map(([x, z], i) => ({ pos: new THREE.Vector3(x, STAGE.y, z), inst: INSTRUMENTS[i], guest: null, since: 0 }));
+    this.vipSlot = { pos: new THREE.Vector3(0, 0, FLOOR.z0 + 0.9), guest: null };
   }
 
   get count() { return this.list.length; }
 
   // ---------------- lugares em círculos ----------------
   computeSlots(n) {
+    // grade na pista de LED, fileiras da frente (perto do palco) primeiro,
+    // do meio para os lados. Se lotar, continua atrás e nas laterais.
     const slots = [];
-    let ring = 0;
-    while (slots.length < n && ring < 20) {
-      const r = RING0 + ring * RING_GAP;
-      const cnt = Math.floor((Math.PI * 2 * r) / SPACING);
-      const ringSlots = [];
-      for (let i = 0; i < cnt; i++) {
-        const a = (i / cnt) * Math.PI * 2 + (ring % 2) * (Math.PI / cnt);
-        const x = Math.cos(a) * r, z = Math.sin(a) * r + this.center.z;
-        if (Math.abs(x) < AISLE) continue; // corredor (atrás: do arco até a pista; frente: visão da câmera)
-        if (BAND.some(([bx, bz]) => Math.hypot(x - bx, z - bz) < 1.5)) continue; // palco da banda
-        ringSlots.push({ pos: new THREE.Vector3(x, 0, z), r, a, ring, guest: null });
+    const z0 = FLOOR.z0 + 0.9;
+    for (let row = 0; slots.length < n && row < 30; row++) {
+      const z = z0 + row * SLOT_GAP;
+      const wide = z > FLOOR.z1 - 0.4;              // fora da pista: fileiras mais largas
+      const half = wide ? 9.5 : (FLOOR.x1 - 0.7);
+      const off = (row % 2) * SLOT_GAP * 0.5;
+      const xs = [];
+      for (let x = -half + off; x <= half + 1e-6; x += SLOT_GAP) xs.push(x);
+      xs.sort((p, q) => Math.abs(p) - Math.abs(q));
+      for (const x of xs) {
+        if (row === 0 && Math.abs(x) < 0.7) continue;  // lugar de destaque
+        slots.push({ pos: new THREE.Vector3(x, 0, z), row, guest: null });
       }
-      // ordem de preenchimento espalhada (não lota um lado só)
-      const order = [];
-      const used = new Set();
-      for (let k = 0; order.length < ringSlots.length; k++) {
-        let idx = Math.floor(((k * 0.6180339887) % 1) * ringSlots.length);
-        while (used.has(idx)) idx = (idx + 1) % ringSlots.length;
-        used.add(idx); order.push(ringSlots[idx]);
-      }
-      slots.push(...order);
-      ring++;
     }
     this.slots = slots;
   }
@@ -251,8 +241,9 @@ export class Crowd {
     this.list.push(g);
     this._planArrival(g);
     if (!silent) {
-      this.fx.poof(ENTRY.clone().setY(0.3), [0.8, 1, 0.6]);
+      this.fx.poof(STAIR_TOP.clone().setY(STAIR_TOP.y + 0.6), [0.9, 0.5, 1]);
       this.sfx('arrive');
+      this._queueEntrance(g);
     }
     this.onCount(this.list.length);
     return g;
@@ -261,30 +252,34 @@ export class Crowd {
   /** chega sem caminhar (usado para encher a festa rápido nos testes) */
   addInstant(info) {
     const g = this.add(info, { silent: true });
-    if (g && g.slot) { g.pos.copy(g.slot.pos); g.path = []; g.state = 'placed'; g.yaw = g.yawTarget = this._faceCenter(g); g.anim.play(pick(DANCES)); }
+    if (g && g.slot) { g.pos.copy(g.slot.pos); g.path = []; g.state = 'placed'; g.yaw = g.yawTarget = this._faceCenter(g); g.entering = false; g.anim.play(pick(DANCES)); }
     return g;
   }
 
   _planArrival(g) {
+    // surge no portal no alto da escada, desce dançando e vai para o lugar
     const s = g.slot;
-    const rr = s.r + RING_GAP * 0.5;
     g.path = [];
-    const aisleZ = this.center.z - rr;
-    g.path.push(new THREE.Vector3(0, 0, Math.min(ENTRY.z + 1.5, aisleZ)));
-    g.path.push(new THREE.Vector3(0, 0, aisleZ));
-    const a0 = -Math.PI / 2, a1 = s.a > Math.PI ? s.a - Math.PI * 2 : s.a;
-    let d = angDiff(a0, a1);
-    const steps = Math.max(1, Math.ceil(Math.abs(d) / 0.28));
-    for (let i = 1; i <= steps; i++) {
-      const a = a0 + (d * i) / steps;
-      g.path.push(new THREE.Vector3(Math.cos(a) * rr, 0, Math.sin(a) * rr + this.center.z));
-    }
-    g.path.push(s.pos.clone());
+    g.path.push(new THREE.Vector3(ENTRY.x, 0, ENTRY.z));
+    g.path.push(new THREE.Vector3(FLOOR.x0 + 0.4, 0, ENTRY.z));
+    if (s && s.pos.y > 0.1) g.path.push(...this._stagePath(s.pos));
+    else if (s) g.path.push(s.pos.clone());
     g.state = 'arriving';
-    g.pos.copy(ENTRY);
-    g.yaw = 0;
-    g.anim.play('hello', { dur: 1.3, next: 'walk' });
-    g.arriveDelay = 1.1;
+    g.pos.copy(STAIR_TOP);
+    g.yaw = Math.PI / 2;
+    g.entryDance = pick(ENTRY_DANCES);
+    g.anim.play('hello', { dur: 1.2, next: g.entryDance });
+    g.arriveDelay = 1.0;
+    g.entering = true;
+  }
+  /** caminho até um lugar em cima do palco (sobe pelos degraus do meio) */
+  _stagePath(p) {
+    return [new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.8), new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.2), p.clone()];
+  }
+  /** fila de close: cada um que entra ganha o seu momento na câmera */
+  _queueEntrance(g) {
+    this.entranceQ.push(g);
+    if (this.entranceQ.length > 8) this.entranceQ.shift();
   }
 
   remove(id, { poof = true } = {}) {
@@ -479,7 +474,7 @@ export class Crowd {
       g.role = 'musician';
       g.setAcc('face', null);
       g.setAcc('instr', slot.inst, 0xffffff);
-      g.path = [slot.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0.3;
+      g.path = g.state === 'arriving' && g.entering ? [new THREE.Vector3(ENTRY.x, 0, ENTRY.z), ...this._stagePath(slot.pos)] : this._stagePath(slot.pos); g.state = 'arriving'; g.arriveDelay = g.arriveDelay > 0 ? g.arriveDelay : 0.3;
       this.updateLabel(g);
     }
     slot.since = performance.now();
@@ -495,7 +490,7 @@ export class Crowd {
     g.band = null; g.role = 'guest';
     g.setAcc('instr', null);
     const s = this.freeSlot();
-    g.slot = s; if (s) { s.guest = g; g.path = [s.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0; }
+    g.slot = s; if (s) { s.guest = g; g.path = [new THREE.Vector3(0, STAGE.y, STAGE.z + STAGE.d / 2 - 0.2), new THREE.Vector3(0, 0, STAGE.z + STAGE.d / 2 + 1.8), s.pos.clone()]; g.state = 'arriving'; g.arriveDelay = 0; }
     this.updateLabel(g);
   }
 
@@ -523,7 +518,7 @@ export class Crowd {
   /** raio ocupado pelos convidados (para a vista aérea pegar todo mundo) */
   extent() {
     let r = 5.5;
-    for (const g of this.list) r = Math.max(r, Math.hypot(g.pos.x - this.center.x, g.pos.z - this.center.z) + 1.4);
+    for (const g of this.list) if (!g.band && g.state === 'placed') r = Math.max(r, Math.abs(g.pos.x - this.center.x) + 1.4, (Math.abs(g.pos.z - this.center.z) + 1.4) * 0.62);
     return Math.min(r, 26);
   }
 
@@ -541,7 +536,7 @@ export class Crowd {
     return g;
   }
 
-  _faceCenter(g) { return Math.atan2(this.center.x - g.pos.x, this.center.z - g.pos.z); }
+  _faceCenter(g) { return Math.atan2((this.lookAt.x - g.pos.x) * 0.35, this.lookAt.z - g.pos.z); }
 
   // ---------------- atualização por quadro ----------------
   update(dt, time, beat, camera, viewW, viewH) {
@@ -549,6 +544,12 @@ export class Crowd {
     this.interactT -= dt;
     if (this.interactT <= 0) { this.interactT = rnd(1.5, 3.5); this._interact(); }
 
+    // fila de closes das entradas
+    this.entranceBusy -= dt;
+    if (this.entranceBusy <= 0 && this.entranceQ.length) {
+      const g = this.entranceQ.shift();
+      if (g.alive && g.state === 'arriving') { this.onFocus(g, 6.5, 'entrance'); this.entranceBusy = 6.5; }
+    }
     this.R.begin();
     this._frame = (this._frame || 0) + 1;
     const camPos = camera.position;
@@ -562,7 +563,7 @@ export class Crowd {
       g._acc = (g._acc || 0) + dt;
       const far = g.pos.distanceToSquared(camPos) > 300 && !g.special && g.state === 'placed';
       if (!(far && ((this._frame + (g.seed * 10 | 0)) & 1))) { g.char.update(g._acc); g._acc = 0; }
-      this._m.makeScale(g.scale, 1, g.scale).setPosition(g.pos.x, 0.025, g.pos.z);
+      this._m.makeScale(g.scale, 1, g.scale).setPosition(g.pos.x, g.pos.y + 0.025, g.pos.z);
       this.R.push('blob', this._m, this._white);
       // efeitos contínuos
       if (g.fxT) {
@@ -605,12 +606,15 @@ export class Crowd {
       const tgt = g.path[0];
       if (!tgt) { g.state = 'placed'; g.speed = 0; return; }
       const dx = tgt.x - g.pos.x, dz = tgt.z - g.pos.z, d = Math.hypot(dx, dz);
-      if (g.anim.name !== 'walk') g.anim.play('walk', { blend: 0.25 });
-      const sp = 2.3;
+      // quem está entrando vem dançando (passo rápido e engraçado); os outros andam
+      const moveAnim = g.entering ? g.entryDance : 'walk';
+      if (g.anim.name !== moveAnim && g.anim.name !== 'hello') g.anim.play(moveAnim, { blend: 0.25 });
+      const sp = g.entering ? 1.9 : 2.3;
       if (d < 0.12) {
+        g.pos.y = tgt.y;
         g.path.shift();
         if (!g.path.length) {
-          g.state = 'placed'; g.speed = 0;
+          g.state = 'placed'; g.speed = 0; g.entering = false;
           g.yawTarget = this._faceCenter(g);
           g.anim.play(g.band ? g.band.inst : (this.mode || pick(DANCES)), { blend: 0.4 });
           g.timer = rnd(6, 14);
@@ -618,6 +622,12 @@ export class Crowd {
       } else {
         const step = Math.min(d, sp * dt);
         g.pos.x += (dx / d) * step; g.pos.z += (dz / d) * step;
+        // altura: escada da entrada segue os degraus; subir no palco é suave
+        if (g.pos.x < ENTRY.x - 0.05 && Math.abs(g.pos.z - ENTRY.z) < 1.4) {
+          const u = Math.min(1, Math.max(0, (g.pos.x - STAIR_TOP.x) / (ENTRY.x - STAIR_TOP.x)));
+          const nSt = 9, k = Math.min(nSt - 1, Math.floor(u * nSt));
+          g.pos.y = (STAIR_TOP.y / nSt) * (nSt - k);
+        } else g.pos.y += (tgt.y - g.pos.y) * Math.min(1, step / Math.max(d, 0.001));
         g.speed = sp;
         g.yawTarget = Math.atan2(dx, dz);
       }

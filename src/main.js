@@ -9,7 +9,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildHall } from './scene/graveyard.js';
+import { buildHall, FLOOR } from './scene/club.js';
 import { Groom3D, Bride3D } from './chars/heroes3d.js';
 import { loadChars } from './chars/models.js';
 import { Crowd } from './crowd/crowd.js';
@@ -155,7 +155,7 @@ function becomeCouple(u) {
   updateCoupleLabels();
   wedding.trigger('celebrate');
   setTimeout(() => wedding.trigger('kiss'), 3000);
-  fx.confettiRain(new THREE.Vector3(0, 0, 0.3), 9, 380);
+  fx.confettiRain(new THREE.Vector3(0, 0, (FLOOR.z0 + FLOOR.z1) / 2), 9, 380);
   fx.firework(new THREE.Vector3(-4, 9, -2), [1, 0.85, 0.3]);
   fx.firework(new THREE.Vector3(4, 9.5, -2), [1, 0.5, 0.8]);
   audio.sfx('vip');
