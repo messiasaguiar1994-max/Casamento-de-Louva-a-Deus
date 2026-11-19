@@ -32,7 +32,7 @@ const cfg = loadConfig();
 const OBS = params.has('obs');
 // OBS: leve por padrão (o PC também está codificando a live). ?q=high para máximo
 if (OBS) cfg.quality = ['low', 'medium', 'high'].includes(params.get('q')) ? params.get('q') : 'medium';
-const FPS_CAP = OBS ? 30 : 0;
+const FPS_CAP = 0;  // o próprio OBS já limita os quadros da fonte de navegador
 if (params.get('user')) cfg.username = params.get('user').replace(/^@/, '');
 if (params.get('q')) cfg.quality = params.get('q');
 
@@ -91,7 +91,7 @@ function setQuality(q) {
 }
 
 // ---------------- mundo ----------------
-const hall = buildHall(scene, { quality: cfg.quality });
+const hall = buildHall(scene, { quality: cfg.quality, lite: OBS && params.get('q') !== 'high' });
 fx = new FX(scene);
 const audio = new AudioEngine();
 audio.setMusicVolume(cfg.musicVolume);
@@ -273,7 +273,7 @@ const link = new TikTokLink(handleEvent, (state, msg) => {
 game.remote = link.remote;
 const panelEl = document.getElementById('panel');
 buildPanel(panelEl, game);
-hud.showFps(cfg.showFps);
+hud.showFps(cfg.showFps || params.has('fps'));
 const gear = document.createElement('button');
 gear.id = 'gear'; gear.textContent = '⚙'; gear.title = 'Painel (P)';
 gear.onclick = () => panelEl.classList.toggle('hidden');

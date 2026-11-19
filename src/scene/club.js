@@ -93,7 +93,7 @@ function woodSign(lines, { w = 1200, h = 900, font = 150, colors = ['#ff6ad5'], 
   }, { clamp: true });
 }
 
-export function buildHall(scene, { quality = 'high' } = {}) {
+export function buildHall(scene, { quality = 'high', lite = false } = {}) {
   const hall = new THREE.Group(); scene.add(hall);
   const updaters = []; const hi = quality !== 'low'; seed = 11;
 
@@ -153,8 +153,8 @@ export function buildHall(scene, { quality = 'high' } = {}) {
     const wv = new THREE.Mesh(winGeo, winMat); wv.position.set(x, 3.2, -13.55); hall.add(wv);
     const fr = new THREE.Mesh(new THREE.TorusGeometry(1.4, 0.12, 6, 20, Math.PI), new THREE.MeshStandardMaterial({ color: 0x3a2a44 })); fr.position.set(x, 7.0, -13.5); fr.scale.y = 1.6; hall.add(fr);
   }
-  const winLight = new THREE.PointLight(0x6aff4a, 18, 18, 2); winLight.position.set(-10.5, 5, -11.5); scene.add(winLight);
-  const winLight2 = winLight.clone(); winLight2.position.x = 10.5; scene.add(winLight2);
+  if (!lite) { const winLight = new THREE.PointLight(0x6aff4a, 18, 18, 2); winLight.position.set(-10.5, 5, -11.5); scene.add(winLight);
+  const winLight2 = winLight.clone(); winLight2.position.x = 10.5; scene.add(winLight2); }
 
   // ---------------- palco com degraus neon ----------------
   const woodTex = canvasTex(256, 256, (g, w, h) => { g.fillStyle = '#3a2210'; g.fillRect(0, 0, w, h); for (let i = 0; i < 8; i++) { g.fillStyle = `rgba(0,0,0,${0.25 + Math.random() * 0.2})`; g.fillRect(0, i * 32, w, 3); } for (let i = 0; i < 300; i++) { g.fillStyle = `rgba(90,55,25,${Math.random() * 0.5})`; g.fillRect(Math.random() * w, Math.random() * h, 30, 1); } }, { repeat: [3, 2] });
@@ -303,7 +303,7 @@ export function buildHall(scene, { quality = 'high' } = {}) {
   spotDefs.forEach(([x, z, col], i) => {
     const can = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.32, 0.55, 12), trussMat); can.position.set(x, 8.85, z + 0.2); hall.add(can);
     const lens = new THREE.Mesh(new THREE.CircleGeometry(0.22, 12), neon(col, 3)); lens.position.set(x, 8.57, z + 0.2); lens.rotation.x = Math.PI / 2; hall.add(lens);
-    const sl = (i < 4 || hi) ? new THREE.SpotLight(col, 38, 30, 0.26, 0.5, 1.6) : null;
+    const sl = lite ? (i === 1 || i === 2 ? new THREE.SpotLight(col, 38, 30, 0.26, 0.5, 1.6) : null) : (i < 4 || hi) ? new THREE.SpotLight(col, 38, 30, 0.26, 0.5, 1.6) : null;
     if (sl) { sl.position.set(x, 8.6, z + 0.2); scene.add(sl, sl.target); }
     const cg = new THREE.ConeGeometry(1.9, 10, 20, 1, true); cg.translate(0, -5, 0);
     const bm = new THREE.Mesh(cg, beamMat(col)); bm.position.set(x, 8.6, z + 0.2); scene.add(bm);
