@@ -597,7 +597,7 @@ export class Crowd {
     }
     this.R.begin();
     this._frame = (this._frame || 0) + 1;
-    const camPos = camera.position;
+    const camPos = camera.position; this._cam = camPos;
     for (const g of this.list) {
       this._behave(g, dt, time);
       const root = g.char.root;
@@ -702,7 +702,10 @@ export class Crowd {
       if (g.player && g.anim.name !== g.player.bodyAnim && g.busy <= 0) g.anim.play(g.player.bodyAnim, { blend: 0.4 });
       return;
     }
-    if (g.faceT > 0) { g.faceT -= dt; }
+    if (this.focused === g && this._cam) { // em foco: vira para a câmera (se sente especial)
+      g.yawTarget = Math.atan2(this._cam.x - g.pos.x, this._cam.z - g.pos.z);
+      g.yaw += angDiff(g.yaw, g.yawTarget) * Math.min(1, dt * 4);
+    } else if (g.faceT > 0) { g.faceT -= dt; }
     else if (g.role === 'vip') g.yawTarget = Math.sin(time * 0.4) * 0.4; // convidado de honra olha para a câmera
     else g.yawTarget = this._faceCenter(g) + Math.sin(time * 0.3 + g.seed * 20) * 0.35;
     g.yaw += angDiff(g.yaw, g.yawTarget) * Math.min(1, dt * 3);

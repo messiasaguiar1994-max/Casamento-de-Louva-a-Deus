@@ -8,7 +8,8 @@
 // =============================================================
 import * as THREE from 'three';
 import { DANCES } from '../chars/models.js';
-import { STAGE, FLOOR } from './club.js';
+import { STAGE, FLOOR, colliders } from './club.js';
+const COLL = colliders();
 
 const C = new THREE.Vector3(0, STAGE.y, STAGE.z + 0.4);           // centro do casal (no palco)
 const FZ = (FLOOR.z0 + FLOOR.z1) / 2;                                 // centro da pista
@@ -46,15 +47,15 @@ export class CameraDirector {
     const hgt = THREE.MathUtils.clamp(head.y - base.y, 1.4, 3.2);
     const look = new THREE.Vector3(base.x, base.y + hgt * 0.6, base.z);
     const vf = THREE.MathUtils.degToRad(this.cam.fov) / 2;
-    const dist = (hgt * (F.kind === 'vip' ? 0.95 : 0.75)) / Math.tan(vf);
+    const dist = (hgt * (F.kind === 'vip' ? 2.2 : 2.0)) / Math.tan(vf);   // aberto: corpo inteiro + quem está em volta
     F.re = (F.re || 0) - dt;
     if (F.re <= 0 || F.ang === undefined) {
       F.re = 0.5;
-      const yaw = g.yaw;
-      const offs = [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2, 1.6, -1.6];
+      const yaw = 0;   // sempre do lado da plateia (o personagem em foco se vira para a câmera)
+      const offs = [0, 0.3, -0.3, 0.6, -0.6, 0.9, -0.9];
       let best = null, bestScore = Infinity;
-      for (const [df, dpen] of [[1, 0], [0.7, 0.8]]) {
-        for (const [elev, pen] of [[0.28, 0], [0.5, 1.2], [0.72, 2.4]]) {
+      for (const [df, dpen] of [[1, 0], [1.2, 0.8]]) {
+        for (const [elev, pen] of [[0.42, 0], [0.55, 0.8], [0.68, 1.6], [0.85, 2.6]]) {
           for (const o of offs) {
             const a = yaw + o;
             const p = this._camAt(look, a, elev, dist * df);
@@ -76,7 +77,10 @@ export class CameraDirector {
   /** quantos obstáculos ficam entre a câmera e o personagem (outros personagens, palco, parede) */
   _blocked(p, look, head, g) {
     let n = 0;
-    if (p.z < -13 || Math.abs(p.x) > 16) n += 3;
+    if (p.z < -13 || Math.abs(p.x) > 12 || p.z > FLOOR.z1 + 14) n += 5;
+    // quem está na pista: a câmera não pode ir para trás do palco (arco, cortina, parede)
+    if (g && g.pos && g.pos.y < 0.5 && (p.z < STAGE.z - 0.9 || (p.z < STAGE.z + STAGE.d / 2 && p.y < STAGE.y + 2))) n += 5;  // pode filmar de cima do palco, nunca de trás do arco
+    if (g && g.pos && g.pos.y > 0.5 && p.z < STAGE.z - STAGE.d / 2 + 0.3) n += 5;
     if (Math.abs(p.x) < STAGE.w / 2 + 0.3 && p.z > STAGE.z - STAGE.d / 2 && p.z < STAGE.z + STAGE.d / 2 + 1.5 && p.y < STAGE.y + 0.4) n += 3;
     // candelabros do palco e da pista
     for (const [cx, cy, cz, top] of [[-5.65, STAGE.y, STAGE.z - STAGE.d / 2 + 0.35, 1.9], [5.65, STAGE.y, STAGE.z - STAGE.d / 2 + 0.35, 1.9], [-7.2, 0, -1.6, 2.4], [7.2, 0, -1.6, 2.4]]) {
@@ -87,6 +91,12 @@ export class CameraDirector {
         const t = THREE.MathUtils.clamp(P.clone().sub(A).dot(ab) / ab.lengthSq(), 0, 1);
         if (A.clone().addScaledVector(ab, t).distanceTo(P) < 0.6) { n++; break; }
       }
+    }
+    // grade de ossos, placas, colunas: nada de cenário colado na lente
+    for (const c of COLL) {
+      const ex = c.x2 - c.x1, ez = c.z2 - c.z1, L2 = ex * ex + ez * ez;
+      let t = L2 > 0 ? ((p.x - c.x1) * ex + (p.z - c.z1) * ez) / L2 : 0; t = Math.max(0, Math.min(1, t));
+      if (Math.hypot(p.x - (c.x1 + ex * t), p.z - (c.z1 + ez * t)) < c.r + 1.8) n += 3;
     }
     if (!this.obstacles) return n;
     const seg = (A, B, P, r) => { // distância do ponto P ao segmento AB < r
@@ -102,7 +112,7 @@ export class CameraDirector {
         if (seg(p, head, P, rad) || seg(p, look, P, rad * 0.65)) { n++; break; }
       }
       if (Math.hypot(o.pos.x - p.x, o.pos.z - p.z) < 0.9 && p.y < o.head.y + 0.6) n += 2;
-      if (o.head.distanceTo(p) < 1.7) n += 1; // alguém colado na câmera fica enorme na tela
+      if (o.head.distanceTo(p) < 2.6) n += 4; // alguém colado na câmera fica enorme na tela
     }
     return n;
   }
@@ -174,8 +184,8 @@ export class CameraDirector {
       const u = THREE.MathUtils.clamp(k / this.shotDur, 0, 1), e = u * u * (3 - 2 * u);
       const ext = this.crowdRef ? Math.min(9, Math.max(4, this.crowdRef.list.reduce((m, g) => g.band ? m : Math.max(m, Math.abs(g.pos.x)), 0))) : 6;
       const x = (this.panDir || 1) * (-ext + 2 * ext * e);
-      this.dPos.set(x * 0.9, 2.0, FLOOR.z0 - 1.8);
-      this.dLook.set(x, 1.55, FLOOR.z0 + 3.0);
+      this.dPos.set(x * 0.9, 3.0, FLOOR.z0 - 2.8);
+      this.dLook.set(x, 1.35, FLOOR.z0 + 2.4);
     } else if (shot === 'band') {
       // mira onde estão os músicos (nunca o palco vazio)
       const B = this.crowdRef ? this.crowdRef.list.filter((g) => g.band && g.state === 'placed') : [];
