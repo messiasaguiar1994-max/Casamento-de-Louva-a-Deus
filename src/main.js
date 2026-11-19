@@ -94,7 +94,7 @@ function setQuality(q) {
 const hall = buildHall(scene, { quality: cfg.quality, lite: OBS && params.get('q') !== 'high' });
 fx = new FX(scene);
 const audio = new AudioEngine();
-audio.setMusicVolume(cfg.musicVolume);
+audio.setMusicVolume(params.get('musica') === '0' ? 0 : cfg.musicVolume);  // ?musica=0: sem música do jogo (toca a sua no PC), efeitos continuam
 audio.setSfxVolume(cfg.sfxVolume);
 audio.fileBpm = cfg.danceBpm || 150;
 
