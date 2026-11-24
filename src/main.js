@@ -112,8 +112,7 @@ scene.add(groom.group, bride.group);
 }
 
 const hud = new HUD(document.getElementById('hud'));
-const giftHints = startGiftHints(document.getElementById('hud'));
-if (params.has('hints')) giftHints.showNow();
+// sem figurinhas de presentes na tela (nada que peça presente)
 const camDir = new CameraDirector(camera);
 const crowd = new Crowd(scene, {
   fx, labelsEl: document.getElementById('labels'),
@@ -214,7 +213,7 @@ function handleEvent(e) {
   //   10 moedas (Tiny Dino)       -> vira músico da banda
   //   30 moedas (Rosquinha/Capivara) -> vira noivo ou noiva
   if (e.type !== 'gift') return;
-  hud.gift(u, e.giftName || 'presente', e.count || 1);
+  // sem faixa "fulano enviou X": nada na tela associa presente a recompensa
   const action = resolveGift(cfg, e.giftName, e.diamonds, e.count);
   if (action === 'none') return;
   if (action === 'couple') { becomeCouple(u); return; }

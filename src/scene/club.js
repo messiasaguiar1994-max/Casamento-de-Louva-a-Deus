@@ -7,7 +7,7 @@
 //  - Candelabros, grade de ossos com tecido roxo e rosas
 //  - Janelas góticas verdes, lápides, lua verde com castelo, morcegos
 //  - Escada lateral com pétalas: é por ela que os convidados chegam
-//  - Placas "Envie Rosas" e "Participe e faça parte dessa festa!"
+//  - Placas neutras ("Viva os Noivos!" e "Festa dos Mortos Vivos"), sem pedir presente
 // =============================================================
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -465,18 +465,14 @@ export function buildHall(scene, { quality = 'high', lite = false } = {}) {
   portalIn.position.copy(portal.position); portalIn.rotation.y = Math.PI / 2; hall.add(portalIn);
   updaters.push((t) => { portal.rotation.x = t * 0.8; const k = 1 + Math.sin(t * 3) * 0.04; portal.scale.set(k, k, k); });
 
-  // ---------------- placas "Envie Rosas" e "Participe..." ----------------
-  const leftTex = woodSign(['Envie', 'Rosas'], { font: 210, colors: ['#ff8ae6'], extra: (g, w, h) => {
-    // rosa neon + seta
-    g.save(); g.translate(w * 0.8, h * 0.4); g.shadowColor = '#ff2d6a'; g.shadowBlur = 30;
-    g.strokeStyle = '#ff4d7a'; g.lineWidth = 12; g.beginPath(); g.arc(0, 0, 70, 0, Math.PI * 2); g.stroke();
-    g.beginPath(); g.arc(-10, -6, 38, 0.5, 5.5); g.stroke(); g.beginPath(); g.arc(10, 4, 20, 2.5, 7); g.stroke();
-    g.strokeStyle = '#4dff6a'; g.shadowColor = '#4dff6a'; g.beginPath(); g.moveTo(0, 70); g.lineTo(0, 260); g.stroke();
-    g.beginPath(); g.moveTo(0, 160); g.quadraticCurveTo(-60, 130, -70, 190); g.quadraticCurveTo(-30, 200, 0, 170); g.stroke(); g.restore();
-    g.save(); g.translate(w * 0.4, h * 0.88); g.strokeStyle = '#c86aff'; g.shadowColor = '#c86aff'; g.shadowBlur = 25; g.lineWidth = 14;
-    g.beginPath(); g.moveTo(0, -60); g.lineTo(0, 20); g.moveTo(-40, -15); g.lineTo(0, 25); g.lineTo(40, -15); g.stroke(); g.restore();
+  // ---------------- placas decorativas ----------------
+  // placas neutras (nenhuma pede presente)
+  const leftTex = woodSign(['Viva os', 'Noivos!'], { font: 190, colors: ['#ff8ae6', '#c6ff6a'], extra: (g, w, h) => {
+    // coração neon
+    g.save(); g.translate(w * 0.82, h * 0.5); g.shadowColor = '#ff2d6a'; g.shadowBlur = 30; g.strokeStyle = '#ff4d7a'; g.lineWidth = 14;
+    g.beginPath(); g.moveTo(0, 60); g.bezierCurveTo(-110, -20, -60, -110, 0, -50); g.bezierCurveTo(60, -110, 110, -20, 0, 60); g.stroke(); g.restore();
   } });
-  const rightTex = woodSign(['Participe', 'e faça', 'parte dessa', 'festa! ♥'], { font: 130, colors: ['#ff8ae6', '#ff8ae6', '#c6ff6a', '#c6ff6a'] });
+  const rightTex = woodSign(['Festa', 'dos', 'Mortos', 'Vivos ♥'], { font: 140, colors: ['#ff8ae6', '#ff8ae6', '#c6ff6a', '#c6ff6a'] });
   const signMat = (tx) => new THREE.MeshStandardMaterial({ map: tx, emissive: 0xffffff, emissiveMap: tx, emissiveIntensity: 0.5, roughness: 0.8 });
   const signs = [];
   for (const [x, z, tx, ry] of [[-9.0, -3.2, leftTex, 0.5], [9.0, -3.2, rightTex, -0.5]]) {
