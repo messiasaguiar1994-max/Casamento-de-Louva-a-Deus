@@ -69,3 +69,11 @@ html, body { -webkit-user-select: none; user-select: none; -webkit-tap-highlight
 #panel .rule input, #panel .rule select { width: 100%; }
 #panel .status { padding: 4px 8px; border-radius: 6px; background: #00000044; font-size: 12px; }
 #panel .status.ok { color: #9f9; } #panel .status.err { color: #f99; }
+/* balãozinho de comentário em cima da cabeça */
+.tag .bubble { order: -2; position: relative; margin-bottom: 0.55em; max-width: 13em; padding: 0.35em 0.7em; border-radius: 0.9em; background: #fff; color: #2a1030; font-weight: 700; font-size: 1.05em; line-height: 1.2; text-align: center; white-space: normal; word-break: break-word; box-shadow: 0 0.15em 0.5em rgba(0,0,0,.45); opacity: 0; transform: translateY(0.4em) scale(.85); transition: opacity .25s, transform .25s; }
+.tag .bubble::after { content: ''; position: absolute; left: 50%; bottom: -0.45em; margin-left: -0.45em; border: 0.45em solid transparent; border-bottom: 0; border-top-color: #fff; }
+.tag .bubble.in { opacity: 1; transform: none; }
+.tag .bubble.out { opacity: 0; transform: translateY(-0.3em); }
+.tag .role { order: -1; }
+/* nome mais visível */
+.tag .nm { font-size: 1.2em; max-width: 11em; }

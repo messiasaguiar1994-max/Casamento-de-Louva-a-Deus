@@ -40,6 +40,7 @@ export function buildPanel(el, game) {
   <div class="row"><input type="text" id="g-name" placeholder="nome do presente" value="Rose" style="flex:1"><input type="number" id="g-dia" value="1" title="diamantes"><input type="number" id="g-cnt" value="1" title="quantidade"></div>
   <div class="row"><button class="pri" id="g-send">Simular presente</button></div>
   <div class="row"><button data-g="Rose,1">🌹 Rosa</button><button data-g="Tiny Diny,10">🦖 Tiny Dino (músico)</button><button data-g="Doughnut,30">🍩 Rosquinha (noivo/a)</button><button data-g="Capybara,30">🦫 Capivara (noivo/a)</button></div>
+  <div class="row"><button id="t-chat">💬 Comentário de teste</button></div>
 
   <h3>Ações dos presentes</h3>
   <div class="hint">Palavras = parte do nome do presente (em inglês ou português). Sem palavras, vale o valor mínimo em diamantes (o maior que couber).</div>
@@ -114,6 +115,8 @@ export function buildPanel(el, game) {
     const g = id && game.crowd.guests.get(id);
     return g ? { id: g.id, name: g.name, pic: g.pic } : game.testUser();
   };
+  const FRASES = ['Viva os noivos!! 🧟‍♀️💍', 'kkkkk que dança é essa', 'boa noite festa!', 'eu quero ser o músico 🎸', 'olha eu aqui dançando', 'que casamento top 🔥'];
+  $('t-chat').onclick = () => { const L = game.crowd.list; if (!L.length) return; const g = L[(Math.random() * L.length) | 0]; game.event({ type: 'chat', user: { id: g.id, name: g.name, pic: g.pic }, comment: FRASES[(Math.random() * FRASES.length) | 0] }); };
   $('g-send').onclick = () => game.event({ type: 'gift', user: who(), giftName: $('g-name').value || 'Rose', diamonds: Number($('g-dia').value) || 1, count: Number($('g-cnt').value) || 1 });
   el.querySelectorAll('[data-g]').forEach((b) => {
     b.onclick = () => { const [name, d] = b.dataset.g.split(','); game.event({ type: 'gift', user: who(), giftName: name, diamonds: Number(d), count: 1 }); };

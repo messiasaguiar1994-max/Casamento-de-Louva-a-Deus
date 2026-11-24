@@ -14,7 +14,7 @@ import { loadInstruments, socketsFor } from './chars/instruments.js';
 import { createChar } from './chars/models.js';
 import { Groom3D, Bride3D } from './chars/heroes3d.js';
 import { loadChars } from './chars/models.js';
-import { Crowd } from './crowd/crowd.js';
+import { Crowd, showBubble } from './crowd/crowd.js';
 import { FX } from './fx/particles.js';
 import { AudioEngine } from './audio/audio.js';
 import { CameraDirector, WeddingDirector } from './scene/director.js';
@@ -212,6 +212,15 @@ function handleEvent(e) {
   //   rosa (ou qualquer presente) -> entra na festa
   //   10 moedas (Tiny Dino)       -> vira músico da banda
   //   30 moedas (Rosquinha/Capivara) -> vira noivo ou noiva
+  // comentário de quem já está na festa: balãozinho em cima da cabeça
+  if (e.type === 'chat' && e.comment) {
+    const txt = String(e.comment);
+    if (!crowd.say(u.id, txt)) {
+      const k = couple.groom && couple.groom.id === u.id ? 0 : couple.bride && couple.bride.id === u.id ? 1 : -1;
+      if (k >= 0) showBubble(coupleTags[k].el, txt.length > 70 ? txt.slice(0, 68) + '…' : txt);
+    }
+    return;
+  }
   if (e.type !== 'gift') return;
   // sem faixa "fulano enviou X": nada na tela associa presente a recompensa
   const action = resolveGift(cfg, e.giftName, e.diamonds, e.count);
@@ -382,6 +391,7 @@ if (SHOT) {
   for (let i = 0; i < steps; i++) {
     if (gift && i === 10) { const g = crowd.list.find((x) => !x.bot) || crowd.list[0]; if (gift === 'musician') { for (const x of crowd.list.slice(0, 4)) crowd.makeMusician(x); } else if (gift === 'couple') becomeCouple({ id: g.id, name: g.name, pic: g.pic }); else crowd.act(g, gift); }
     if (params.has('focus') && i === Math.max(0, steps - 50)) { const L = crowd.list.filter((x) => x.state === 'placed'); const fq = params.get('focus'); const fg = fq.startsWith('band') ? L.filter((x) => x.band)[Number(fq.slice(4) || 0)] : L[Number(fq) % L.length]; if (fg) camDir.focusOn(fg, 30, 'tour'); }
+    if (params.has('chat') && i === steps - 20) for (const g of crowd.list.slice(0, 6)) handleEvent({ type: 'chat', user: { id: g.id, name: g.name }, comment: 'Viva os noivos!! que festa 🔥' });
     if (params.has('arrive') && i === 4) handleEvent({ type: 'gift', user: testUser(), giftName: 'Rose', diamonds: 1, count: 1 });
     tick(0.05);
   }

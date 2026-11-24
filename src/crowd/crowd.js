@@ -363,13 +363,26 @@ export class Crowd {
     this.updateLabel(g);
     return el;
   }
+  /** balãozinho com o comentário do convidado, em cima da cabeça */
+  say(id, text) {
+    const g = this.guests.get(id);
+    if (!g || !text) return false;
+    let t = String(text).replace(/\s+/g, ' ').trim();
+    if (!t) return false;
+    if (t.length > 70) t = t.slice(0, 68) + '…';
+    showBubble(g.label, t);
+    g.lastActive = performance.now();
+    return true;
+  }
   updateLabel(g) {
     const el = g.label;
     const initial = (g.name || '?').trim().charAt(0).toUpperCase();
     const roleTxt = g.role === 'musician' ? '🎵 Músico' : g.role === 'padrinho' ? 'Padrinho' : g.role === 'madrinha' ? 'Madrinha' : g.role === 'vip' ? '⭐ Convidado de honra' : '';
     el.className = 'tag' + (g.role === 'vip' || g.role === 'musician' ? ' vip' : g.role === 'padrinho' || g.role === 'madrinha' ? ' pad' : '');
+    const keep = el.querySelector('.bubble');
     el.innerHTML = `${roleTxt ? `<div class="role">${roleTxt}</div>` : ''}<div class="pic"${g.pic ? ` style="background-image:url('${encodeURI(g.pic).replace(/'/g, '%27')}')"` : ''}>${g.pic ? '' : `<span>${escapeHtml(initial)}</span>`}</div><div class="nm">${escapeHtml(g.name)}</div>`;
     if (!g.pic) el.querySelector('.pic').style.background = '#' + g.bodyCol.getHexString();
+    if (keep) el.prepend(keep);
   }
 
   // ---------------- ações (presentes / comandos) ----------------
@@ -824,6 +837,15 @@ export class Crowd {
       if (z !== g._z) { g._z = z; g.label.style.zIndex = z; }
     }
   }
+}
+
+export function showBubble(el, text) {
+  let b = el.querySelector('.bubble');
+  if (!b) { b = document.createElement('div'); b.className = 'bubble'; el.prepend(b); }
+  b.textContent = text;
+  b.classList.remove('out'); void b.offsetWidth; b.classList.add('in');
+  clearTimeout(b._t);
+  b._t = setTimeout(() => { b.classList.add('out'); b._t = setTimeout(() => b.remove(), 400); }, 6500);
 }
 
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
