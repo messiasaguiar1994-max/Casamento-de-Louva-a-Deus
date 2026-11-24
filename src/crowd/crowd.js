@@ -620,7 +620,7 @@ export class Crowd {
       root.scale.setScalar(g.scale);
       // otimização: quem está longe da câmera anima a cada 2 quadros
       g._acc = (g._acc || 0) + dt;
-      const far = g.pos.distanceToSquared(camPos) > 300 && !g.special && g.state === 'placed' && !g.player;
+      const far = (this.lodAll || g.pos.distanceToSquared(camPos) > 300) && !g.special && g.state === 'placed' && !g.player && this.focused !== g;
       if (!(far && ((this._frame + (g.seed * 10 | 0)) & 1))) { g.char.update(g._acc); g._acc = 0; }
       if (g.player && g.state === 'placed') g.player.update(dt, beat);
       this._m.makeScale(g.scale, 1, g.scale).setPosition(g.pos.x, g.pos.y + 0.025, g.pos.z);

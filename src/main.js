@@ -31,10 +31,11 @@ const cfg = loadConfig();
 // modo OBS (fonte de navegador): ?obs=1&user=seu_usuario
 const OBS = params.has('obs');
 // OBS: leve por padrão (o PC também está codificando a live). ?q=high para máximo
-if (OBS) cfg.quality = ['low', 'medium', 'high'].includes(params.get('q')) ? params.get('q') : 'medium';
+const ULTRA = params.get('q') === 'ultra';  // ?q=ultra: o mais leve possível (PC sem placa de vídeo)
+if (OBS) cfg.quality = ['low', 'medium', 'high'].includes(params.get('q')) ? params.get('q') : ULTRA ? 'low' : 'medium';
 const FPS_CAP = 0;  // o próprio OBS já limita os quadros da fonte de navegador
 if (params.get('user')) cfg.username = params.get('user').replace(/^@/, '');
-if (params.get('q')) cfg.quality = params.get('q');
+if (params.get('q')) cfg.quality = ULTRA ? 'low' : params.get('q');
 
 // ---------------- renderizador 9:16 ----------------
 const stage = document.getElementById('stage');
@@ -74,7 +75,7 @@ function resize() {
   camera.updateProjectionMatrix();
   const maxPr = cfg.quality === 'low' ? 0.85 : cfg.quality === 'medium' ? 1.25 : 2;
   let pr = Math.min(window.devicePixelRatio || 1, 1920 / h, maxPr);
-  if (OBS) pr = (cfg.quality === 'high' ? 1920 : cfg.quality === 'medium' ? 1280 : 960) / h;  // desenha em 720p e o OBS amplia
+  if (OBS) pr = (ULTRA ? 640 : cfg.quality === 'high' ? 1920 : cfg.quality === 'medium' ? 1280 : 960) / h;  // desenha em 720p e o OBS amplia
   renderer.setPixelRatio(pr);
   renderer.setSize(w, h, false);
   composer.setPixelRatio(pr);
@@ -120,7 +121,19 @@ const crowd = new Crowd(scene, {
   onFocus: (g, dur, kind) => camDir.focusOn(g, dur, kind),
   onCount: (n) => { hud.setCount(n); camDir.crowdCount = n; },
 });
-crowd.setLimit(cfg.limit);
+crowd.setLimit(ULTRA ? Math.min(cfg.limit, 30) : cfg.limit);
+if (ULTRA) {
+  // sem luzes coloridas, feixes, neblina e pontinhos do globo; uma luz geral mais forte no lugar
+  crowd.lodAll = true;
+  const off = [];
+  scene.traverse((o) => {
+    if ((o.isPointLight || o.isSpotLight) && o !== crowd.vipLight) off.push(o);
+    else if (o.isMesh && o.material && (o.material.blending === THREE.AdditiveBlending || (o.material.transparent && o.geometry && o.geometry.parameters && o.geometry.parameters.width === 60))) off.push(o);
+    else if (o.isInstancedMesh && o.geometry && o.geometry.type === 'CircleGeometry') off.push(o);
+  });
+  for (const o of off) o.visible = false;
+  scene.add(new THREE.AmbientLight(0xd8b8ff, 1.1));
+}
 camDir.pickGuest = () => crowd.pickForCamera();
 camDir.crowdRef = crowd;
 crowd.extraObstacles = () => [groom.group.position, bride.group.position];
